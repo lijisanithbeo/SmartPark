@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartPark.Application.Interfaces;
+using SmartPark.Infrastructure.Options;
 using SmartPark.Domain.Interfaces;
 using SmartPark.Infrastructure.Data;
 using SmartPark.Infrastructure.Services;
@@ -22,6 +23,11 @@ public static class DependencyInjection
         services.AddScoped<IQRCodeService, QRCodeService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IPricingService, PricingService>();
+        services.AddScoped<IRealtimeService, RealtimeService>();
+
+        services.Configure<SendGridOptions>(config.GetSection("SendGrid"));
+        services.Configure<AppOptions>(config.GetSection("App"));
+        services.AddScoped<IEmailService, SendGridEmailService>();
 
         return services;
     }
