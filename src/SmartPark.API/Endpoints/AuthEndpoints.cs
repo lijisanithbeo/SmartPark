@@ -20,5 +20,19 @@ public static class AuthEndpoints
             var result = await authService.LoginAsync(request);
             return Results.Ok(result);
         });
+
+        group.MapPost("/forgot-password", async (ForgotPasswordRequest request, IPasswordResetService passwordResetService) =>
+        {
+            await passwordResetService.SendResetEmailAsync(request.Email);
+            return Results.Ok(new { message = "If that email is registered, a reset link has been sent." });
+        });
+
+        group.MapPost("/reset-password", async (ResetPasswordRequest request, IPasswordResetService passwordResetService) =>
+        {
+            var success = await passwordResetService.ResetPasswordAsync(request.Token, request.NewPassword);
+            return success
+                ? Results.Ok(new { message = "Password reset successfully." })
+                : Results.BadRequest(new { error = "Reset link is invalid or has expired." });
+        });
     }
 }

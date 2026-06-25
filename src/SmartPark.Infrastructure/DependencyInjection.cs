@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.Configure<SendGridOptions>(config.GetSection("SendGrid"));
         services.Configure<AppOptions>(config.GetSection("App"));
         services.AddScoped<IEmailService, SendGridEmailService>();
+        services.AddScoped<IPasswordResetService, PasswordResetService>();
 
         return services;
     }
