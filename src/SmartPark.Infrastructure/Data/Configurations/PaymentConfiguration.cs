@@ -16,5 +16,9 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.TransactionID).HasMaxLength(100);
         builder.Property(p => p.PaymentStatus).HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.PaymentDate).IsRequired();
+
+        // Indexes for payment lookups and revenue aggregation queries
+        builder.HasIndex(p => p.ReservationID);
+        builder.HasIndex(p => new { p.PaymentStatus, p.PaymentDate });
     }
 }

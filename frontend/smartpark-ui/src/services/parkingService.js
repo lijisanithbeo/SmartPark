@@ -2,6 +2,8 @@ import api from './api'
 
 const parkingService = {
   getLocations:          ()           => api.get('/parking-locations').then(r => r.data),
+  getAllLocationsAdmin:   ()           => api.get('/parking-locations/admin/all').then(r => r.data),
+  getMyLocations:        ()           => api.get('/parking-locations/my').then(r => r.data),
   getLocationById:       (id)         => api.get(`/parking-locations/${id}`).then(r => r.data),
   getLocationsByCity:    (city)       => api.get(`/parking-locations/city/${city}`).then(r => r.data),
   createLocation:        (data)       => api.post('/parking-locations', data).then(r => r.data),

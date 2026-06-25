@@ -10,11 +10,15 @@ public class PaymentService : IPaymentService
 {
     private readonly IUnitOfWork _uow;
     private readonly INotificationService _notifications;
+    private readonly IRealtimeService _realtime;
+    private readonly IPricingService _pricing;
 
-    public PaymentService(IUnitOfWork uow, INotificationService notifications)
+    public PaymentService(IUnitOfWork uow, INotificationService notifications, IRealtimeService realtime, IPricingService pricing)
     {
         _uow = uow;
         _notifications = notifications;
+        _realtime = realtime;
+        _pricing = pricing;
     }
 
     public async Task<PaymentDto> CreateAsync(CreatePaymentRequest request)
@@ -53,6 +57,21 @@ public class PaymentService : IPaymentService
         return ToDto(payment);
     }
 
+    public async Task<IEnumerable<AdminPaymentDto>> GetAllForAdminAsync()
+    {
+        var payments = await _uow.Payments.GetAllWithDetailsAsync();
+        return payments.Select(p => new AdminPaymentDto(
+            p.ID,
+            p.ReservationID,
+            $"{p.Reservation?.User?.FirstName} {p.Reservation?.User?.LastName}".Trim(),
+            p.Reservation?.User?.Email ?? string.Empty,
+            p.Amount,
+            p.PaymentMethod.ToString(),
+            p.TransactionID,
+            p.PaymentStatus.ToString(),
+            p.PaymentDate));
+    }
+
     public async Task<PaymentDto> MarkSuccessAsync(int id)
     {
         var payment = await _uow.Payments.GetByIdAsync(id)
@@ -70,6 +89,10 @@ public class PaymentService : IPaymentService
         await _uow.SaveChangesAsync();
 
         await _notifications.SendPaymentSuccessAsync(reservation.UserID, payment.ID);
+
+        var slot = await _uow.ParkingSlots.GetByIdWithLocationAsync(reservation.SlotID);
+        await _realtime.NotifyPaymentCompletedAsync(payment.ID, reservation.ID, slot?.Location?.OwnerID);
+
         return ToDto(payment);
     }
 
@@ -84,18 +107,25 @@ public class PaymentService : IPaymentService
         return ToDto(payment);
     }
 
-    public async Task<PaymentDto> PayReservationAsync(int reservationId, decimal amount, Domain.Enums.PaymentMethod method)
+    public async Task<PaymentDto> PayReservationAsync(int reservationId, decimal amount, Domain.Enums.PaymentMethod method, int callerId)
     {
         var reservation = await _uow.Reservations.GetByIdAsync(reservationId)
             ?? throw new DomainException($"Reservation {reservationId} not found.");
 
+        if (reservation.UserID != callerId)
+            throw new ForbiddenException("You can only pay for your own reservations.");
+
         if (!reservation.IsActive)
             throw new DomainException("Cannot pay for a cancelled reservation.");
+
+        // Always recalculate server-side — prevents client-side price manipulation
+        var serverAmount = await _pricing.CalculateAmountAsync(
+            reservation.SlotID, reservation.StartTime, reservation.EndTime);
 
         var payment = new Payment
         {
             ReservationID = reservationId,
-            Amount        = amount,
+            Amount        = serverAmount,
             PaymentMethod = method,
             PaymentStatus = Domain.Enums.PaymentStatus.Pending,
             PaymentDate   = DateTime.UtcNow
@@ -110,6 +140,9 @@ public class PaymentService : IPaymentService
             await _uow.Payments.AddAsync(payment);
             await _uow.SaveChangesAsync();
             await _notifications.SendPaymentSuccessAsync(reservation.UserID, payment.ID);
+
+            var slot = await _uow.ParkingSlots.GetByIdWithLocationAsync(reservation.SlotID);
+            await _realtime.NotifyPaymentCompletedAsync(payment.ID, reservation.ID, slot?.Location?.OwnerID);
         }
         else
         {

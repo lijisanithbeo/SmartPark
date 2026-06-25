@@ -25,5 +25,10 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
                .WithOne(p => p.Reservation)
                .HasForeignKey<Payment>(p => p.ReservationID)
                .OnDelete(DeleteBehavior.Cascade);
+
+        // Indexes for availability check (IsSlotAvailableAsync) and user queries
+        builder.HasIndex(r => new { r.SlotID, r.Status });
+        builder.HasIndex(r => r.UserID);
+        builder.HasIndex(r => r.ReservationDate);
     }
 }

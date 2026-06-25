@@ -1,5 +1,3 @@
-using SmartPark.Domain.Enums;
-
 namespace SmartPark.Application.DTOs.Auth;
 
 public record RegisterRequest(
@@ -8,5 +6,4 @@ public record RegisterRequest(
     string LastName,
     string Email,
     string Password,
-    string PhoneNumber,
-    UserRole Role);
+    string PhoneNumber);

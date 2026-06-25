@@ -9,6 +9,10 @@ public static class PaymentEndpoints
     {
         var group = app.MapGroup("/api/payments").WithTags("Payments").RequireAuthorization();
 
+        group.MapGet("/", async (IPaymentService service) =>
+            Results.Ok(await service.GetAllForAdminAsync())
+        ).RequireAuthorization("AdminOnly");
+
         group.MapPost("/", async (CreatePaymentRequest request, IPaymentService service) =>
         {
             var result = await service.CreateAsync(request);
@@ -16,10 +20,12 @@ public static class PaymentEndpoints
         }).RequireAuthorization("CustomerOnly");
 
         group.MapGet("/{id:int}", async (int id, IPaymentService service) =>
-            Results.Ok(await service.GetByIdAsync(id)));
+            Results.Ok(await service.GetByIdAsync(id))
+        ).RequireAuthorization("AdminOnly");
 
         group.MapGet("/reservation/{reservationId:int}", async (int reservationId, IPaymentService service) =>
-            Results.Ok(await service.GetByReservationAsync(reservationId)));
+            Results.Ok(await service.GetByReservationAsync(reservationId))
+        ).RequireAuthorization("AdminOnly");
 
         group.MapPut("/{id:int}/success", async (int id, IPaymentService service) =>
             Results.Ok(await service.MarkSuccessAsync(id))

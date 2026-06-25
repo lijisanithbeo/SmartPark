@@ -17,6 +17,7 @@ public class User
     public bool IsActive { get; set; }
 
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
+    public ICollection<ParkingLocation> OwnedLocations { get; set; } = new List<ParkingLocation>();
 
     public static User Create(string userId, string firstName, string lastName, string email, string password, string phoneNumber, UserRole role)
     {

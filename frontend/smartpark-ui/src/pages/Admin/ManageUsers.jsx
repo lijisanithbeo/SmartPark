@@ -1,70 +1,194 @@
 import { useEffect, useState } from 'react'
-import userService from '../../services/userService'
+import { toast } from 'sonner'
+import userService from '@/services/userService'
+import { DataTable } from '@/components/ui/data-table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import { Users, Pencil } from 'lucide-react'
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [confirm, setConfirm] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', phoneNumber: '' })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     userService.getByRole(2)
       .then(setUsers)
+      .catch(() => toast.error('Failed to load users'))
       .finally(() => setLoading(false))
   }, [])
 
-  const toggle = async (id) => {
-    const { isActive } = await userService.toggleActive(id)
-    setUsers(u => u.map(x => x.id === id ? { ...x, isActive } : x))
+  const requestToggle = (user) => {
+    setConfirm({ id: user.id, isActive: user.isActive, name: `${user.firstName} ${user.lastName}` })
   }
 
-  if (loading) return <div style={page}><p>Loading...</p></div>
+  const handleConfirmToggle = async () => {
+    if (!confirm) return
+    try {
+      const { isActive } = await userService.toggleActive(confirm.id)
+      setUsers(u => u.map(x => x.id === confirm.id ? { ...x, isActive } : x))
+      toast.success(`User ${isActive ? 'activated' : 'deactivated'} successfully`)
+    } catch {
+      toast.error('Failed to update user status')
+    } finally {
+      setConfirm(null)
+    }
+  }
+
+  const openEdit = (user) => {
+    setEditTarget(user)
+    setEditForm({
+      firstName:   user.firstName,
+      lastName:    user.lastName,
+      email:       user.email,
+      phoneNumber: user.phoneNumber,
+    })
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const updated = await userService.updateUser(editTarget.id, editForm)
+      setUsers(u => u.map(x => x.id === updated.id ? updated : x))
+      toast.success('User details updated')
+      setEditTarget(null)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update user')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const columns = [
+    { key: 'userID', header: 'User ID' },
+    { key: 'firstName', header: 'Full Name', render: (_, row) => `${row.firstName} ${row.lastName}` },
+    { key: 'email', header: 'Email' },
+    { key: 'phoneNumber', header: 'Phone' },
+    { key: 'createdDate', header: 'Joined', render: (val) => val ? new Date(val).toLocaleDateString() : '—' },
+    {
+      key: 'isActive',
+      header: 'Status',
+      render: (val) => (
+        <Badge variant={val ? 'default' : 'destructive'} className="text-xs">
+          {val ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'id',
+      header: 'Actions',
+      render: (_, row) => (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+            <Pencil className="h-3.5 w-3.5 mr-1" />
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={
+              row.isActive
+                ? 'border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground'
+                : 'border-green-600 text-green-600 hover:bg-green-600 hover:text-white'
+            }
+            onClick={() => requestToggle(row)}
+          >
+            {row.isActive ? 'Deactivate' : 'Activate'}
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div style={page}>
-      <h2 style={heading}>Manage Customers</h2>
-      <p style={{ color: '#666', marginBottom: '20px' }}>{users.length} customer(s) registered</p>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={table}>
-          <thead>
-            <tr style={theadRow}>
-              {['ID', 'Name', 'Email', 'Phone', 'Joined', 'Status', 'Action'].map(h => (
-                <th key={h} style={th}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id} style={tr}>
-                <td style={td}>{u.userID}</td>
-                <td style={td}>{u.firstName} {u.lastName}</td>
-                <td style={td}>{u.email}</td>
-                <td style={td}>{u.phoneNumber}</td>
-                <td style={td}>{new Date(u.createdDate).toLocaleDateString()}</td>
-                <td style={td}>
-                  <span style={{ ...badge, background: u.isActive ? '#e6f4ea' : '#fce8e6', color: u.isActive ? '#137333' : '#c5221f' }}>
-                    {u.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td style={td}>
-                  <button style={{ ...btn, background: u.isActive ? '#d93025' : '#1a73e8' }} onClick={() => toggle(u.id)}>
-                    {u.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {users.length === 0 && <p style={{ textAlign: 'center', color: '#666', padding: '32px' }}>No customers found.</p>}
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Manage Users</h2>
+        <p className="text-muted-foreground mt-1">Customer accounts</p>
       </div>
+
+      <DataTable
+        columns={columns}
+        data={users}
+        loading={loading}
+        searchable
+        searchPlaceholder="Search by name or email…"
+        emptyMessage="No customers found."
+        emptyIcon={Users}
+        pageSize={10}
+      />
+
+      <ConfirmDialog
+        open={!!confirm}
+        onOpenChange={(open) => !open && setConfirm(null)}
+        title={confirm?.isActive ? 'Deactivate User' : 'Activate User'}
+        description={`Are you sure you want to ${confirm?.isActive ? 'deactivate' : 'activate'} ${confirm?.name}?`}
+        confirmLabel={confirm?.isActive ? 'Deactivate' : 'Activate'}
+        variant={confirm?.isActive ? 'destructive' : 'default'}
+        onConfirm={handleConfirmToggle}
+      />
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">First Name</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editForm.firstName}
+                  onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Last Name</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editForm.lastName}
+                  onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <Input
+                id="edit-phone"
+                value={editForm.phoneNumber}
+                onChange={e => setEditForm(f => ({ ...f, phoneNumber: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
-const page    = { padding: '32px 24px', maxWidth: '1000px', margin: '0 auto' }
-const heading = { color: '#1a73e8', marginBottom: '8px' }
-const table   = { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }
-const theadRow = { background: '#f1f3f4' }
-const th      = { padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: '0.85rem', color: '#444', borderBottom: '1px solid #e8eaed' }
-const tr      = { borderBottom: '1px solid #f1f3f4' }
-const td      = { padding: '12px 16px', fontSize: '0.9rem', color: '#333' }
-const badge   = { padding: '3px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }
-const btn     = { padding: '5px 12px', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.82rem' }

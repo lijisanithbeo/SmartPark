@@ -27,6 +27,66 @@ async function geocode(query) {
   return null
 }
 
+// Always fetches FRESH GPS — maximumAge: 0 means never use cached position
+function getFreshLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => reject(err),
+      { maximumAge: 0, timeout: 10000, enableHighAccuracy: true }
+    )
+  })
+}
+
+function NavigateButton({ loc }) {
+  const [loading, setLoading] = useState(false)
+  const destination = encodeURIComponent(`${loc.locationName}, ${loc.address}, ${loc.city}, India`)
+
+  const handleNavigate = async () => {
+    setLoading(true)
+    try {
+      const { lat, lng } = await getFreshLocation()
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${destination}&travelmode=driving`,
+        '_blank'
+      )
+    } catch {
+      // GPS denied or failed — open Maps with destination only, user sets origin manually
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${destination}`,
+        '_blank'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleNavigate}
+      disabled={loading}
+      style={{
+        background: loading ? '#888' : '#34a853',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        padding: '7px 16px',
+        cursor: loading ? 'not-allowed' : 'pointer',
+        fontSize: '0.85rem',
+        fontWeight: '600',
+        width: '100%',
+        marginTop: '6px',
+      }}
+    >
+      {loading ? 'Getting location…' : '🧭 Navigate'}
+    </button>
+  )
+}
+
 function MapController({ center, zoom }) {
   const map = useMap()
   useEffect(() => {
@@ -39,7 +99,6 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
   const navigate = useNavigate()
   const [coords, setCoords] = useState({})
 
-  // Geocode each location to get its lat/lng for the marker
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -48,7 +107,7 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
         const result = await geocode(`${loc.locationName}, ${loc.city}, India`)
         if (cancelled) return
         if (result) setCoords(prev => ({ ...prev, [loc.id]: result }))
-        await new Promise(r => setTimeout(r, 350)) // Nominatim rate limit: 1 req/sec
+        await new Promise(r => setTimeout(r, 350))
       }
     })()
     return () => { cancelled = true }
@@ -89,6 +148,7 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
                 >
                   View Slots
                 </button>
+                <NavigateButton loc={loc} />
               </div>
             </Popup>
           </Marker>

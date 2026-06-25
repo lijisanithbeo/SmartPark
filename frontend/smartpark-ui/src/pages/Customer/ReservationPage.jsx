@@ -1,41 +1,50 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import reservationService from '../../services/reservationService'
-import parkingService from '../../services/parkingService'
-import QRCodeDisplay from '../../components/QRCode/QRCodeDisplay'
-import MiniMap from '../../components/Map/MiniMap'
+import { useAuth } from '@/context/AuthContext'
+import reservationService from '@/services/reservationService'
+import parkingService from '@/services/parkingService'
+import pricingService from '@/services/pricingService'
+import QRCodeDisplay from '@/components/QRCode/QRCodeDisplay'
+import MiniMap from '@/components/Map/MiniMap'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import {
+  Loader2, Navigation, CheckCircle2, Clock, CreditCard,
+  Smartphone, Banknote, TrendingUp, AlertCircle,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { getFreshGPS, formatDestination, buildMapsUrl } from '@/lib/geolocation'
 
+// ── NavigateBtn ──────────────────────────────────────────────────────────────
 function NavigateBtn({ locationName, address, city }) {
   const [loading, setLoading] = useState(false)
-
-  const handleClick = () => {
-    console.log('NavigateBtn props:', { locationName, address, city })
-    const destination = encodeURIComponent([locationName, address, city].filter(Boolean).join(', '))
-    const open = (origin) => {
-      const url = `https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ''}&destination=${destination}&travelmode=driving`
-      console.log('Opening Maps URL:', url)
-      window.open(url, '_blank', 'noopener,noreferrer')
-    }
-    if (navigator.geolocation) {
-      setLoading(true)
-      navigator.geolocation.getCurrentPosition(
-        pos => { setLoading(false); open(`${pos.coords.latitude},${pos.coords.longitude}`) },
-        ()  => { setLoading(false); open(null) }
-      )
-    } else {
-      open(null)
+  const handleClick = async () => {
+    const destination = formatDestination(locationName, address, city)
+    setLoading(true)
+    try {
+      const pos = await getFreshGPS()
+      const origin = `${pos.coords.latitude},${pos.coords.longitude}`
+      window.open(buildMapsUrl(destination, origin), '_blank', 'noopener,noreferrer')
+    } catch {
+      // GPS unavailable or denied — open Maps with destination only
+      window.open(buildMapsUrl(destination, null), '_blank', 'noopener,noreferrer')
+    } finally {
+      setLoading(false)
     }
   }
-
   return (
-    <button onClick={handleClick} style={navBtn} disabled={loading}>
-      {loading ? '📍 Getting location…' : '🗺️ Get Directions'}
-    </button>
+    <Button variant="default" className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={handleClick} disabled={loading}>
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+      {loading ? 'Getting location…' : 'Get Directions'}
+    </Button>
   )
 }
 
-// ── Custom time picker using dropdowns (always visible, no clipping) ─────
+// ── TimePicker ───────────────────────────────────────────────────────────────
 const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
 const MINUTES = ['00', '15', '30', '45']
 
@@ -43,29 +52,22 @@ function TimePicker({ value, onChange }) {
   const [hh, setHh] = useState(() => value ? value.split(':')[0] : '')
   const [mm, setMm] = useState(() => value ? value.split(':')[1] : '')
 
-  // Fully sync internal dropdowns when value changes (including programmatic updates)
   useEffect(() => {
     if (!value) { setHh(''); setMm('') }
     else { const [h, m] = value.split(':'); setHh(h || ''); setMm(m || '') }
   }, [value])
 
-  const handleHour = (h) => {
-    setHh(h)
-    if (mm) onChange(`${h}:${mm}`)
-  }
-  const handleMin = (m) => {
-    setMm(m)
-    if (hh) onChange(`${hh}:${m}`)
-  }
+  const handleHour = (h) => { setHh(h); if (mm) onChange(`${h}:${mm}`) }
+  const handleMin  = (m) => { setMm(m); if (hh) onChange(`${hh}:${m}`) }
 
   return (
-    <div style={timeRow}>
-      <select style={timeSelect} value={hh} onChange={e => handleHour(e.target.value)} required>
+    <div className="flex items-center gap-1">
+      <select className="flex-1 h-10 rounded-md border border-input bg-background px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-ring" value={hh} onChange={e => handleHour(e.target.value)} required>
         <option value="">HH</option>
         {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
       </select>
-      <span style={timeSep}>:</span>
-      <select style={timeSelect} value={mm} onChange={e => handleMin(e.target.value)} required>
+      <span className="font-bold text-muted-foreground">:</span>
+      <select className="flex-1 h-10 rounded-md border border-input bg-background px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-ring" value={mm} onChange={e => handleMin(e.target.value)} required>
         <option value="">MM</option>
         {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
       </select>
@@ -73,6 +75,7 @@ function TimePicker({ value, onChange }) {
   )
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function formatDuration(minutes) {
   if (!minutes || minutes <= 0) return '—'
   const h = Math.floor(minutes / 60)
@@ -82,7 +85,90 @@ function formatDuration(minutes) {
   return `${h}h ${m}m`
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────
+function SummaryRow({ label, value, valueClassName }) {
+  return (
+    <div className="flex justify-between items-center py-1.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={cn('text-sm font-medium', valueClassName)}>{value}</span>
+    </div>
+  )
+}
+
+const DEMAND_STYLES = {
+  Low:    { dot: 'bg-green-500',  badge: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400',  emoji: '🟢' },
+  Medium: { dot: 'bg-yellow-500', badge: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400', emoji: '🟡' },
+  High:   { dot: 'bg-red-500',    badge: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',         emoji: '🔴' },
+}
+
+// ── Demand / Pricing Card ─────────────────────────────────────────────────────
+function PricingCard({ estimate, loading }) {
+  if (loading) {
+    return (
+      <div className="rounded-lg bg-muted p-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+        Calculating pricing…
+      </div>
+    )
+  }
+  if (!estimate) return null
+
+  const demand = DEMAND_STYLES[estimate.demandLevel] || DEMAND_STYLES.Low
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      {/* Pricing breakdown */}
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">Price Breakdown</span>
+        </div>
+        <SummaryRow label="Pricing Type" value={estimate.pricingType} />
+        <SummaryRow label="Rate" value={`₹${estimate.rateApplied}/hr`} />
+        <SummaryRow label="Duration" value={`${estimate.durationHours.toFixed(2)}h`} />
+        <Separator className="my-1.5" />
+        <div className="flex justify-between items-center py-1">
+          <span className="text-sm font-semibold">Total</span>
+          <span className="text-base font-bold text-primary">₹{estimate.totalAmount.toFixed(2)}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">{estimate.breakdownDescription}</p>
+      </div>
+
+      <Separator />
+
+      {/* Demand indicator */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Demand Level</span>
+          <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', demand.badge)}>
+            {demand.emoji} {estimate.demandLevel}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">{estimate.demandMessage}</p>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span>{estimate.availableSlots} available</span>
+          <span>{estimate.occupiedSlots} occupied</span>
+        </div>
+      </div>
+
+      {/* Peak pricing alert */}
+      {estimate.isPeakActive && (
+        <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 px-3 py-2">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">{estimate.peakMessage}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Payment options ───────────────────────────────────────────────────────────
+const PAYMENT_OPTIONS = [
+  { id: 'Card', label: 'Card', icon: CreditCard, sub: null },
+  { id: 'UPI',  label: 'UPI',  icon: Smartphone, sub: null },
+  { id: 'Cash', label: 'Cash', icon: Banknote,   sub: 'Pay at counter' },
+]
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function ReservationPage() {
   const { slotId } = useParams()
   const { user }   = useAuth()
@@ -93,18 +179,23 @@ export default function ReservationPage() {
   const [startTime,     setStartTime]     = useState('')
   const [endDate,       setEndDate]       = useState('')
   const [endTime,       setEndTime]       = useState('')
+  const [vehicleNumber, setVehicleNumber]  = useState('')
   const [paymentMethod, setPaymentMethod] = useState('Card')
   const [duration,      setDuration]      = useState(0)
-  const [totalAmount,   setTotalAmount]   = useState(0)
+  const [estimate,      setEstimate]      = useState(null)
+  const [estimateLoading, setEstimateLoading] = useState(false)
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
   const [step,          setStep]          = useState('form')
   const [qrCode,        setQrCode]        = useState('')
   const [reservation,   setReservation]   = useState(null)
+  const [paidAmount,    setPaidAmount]    = useState(0)
   const [nowLabel,      setNowLabel]      = useState(() => {
     const d = new Date()
     return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
   })
+
+  const debounceRef = useRef(null)
 
   useEffect(() => {
     const tick = () => {
@@ -121,13 +212,11 @@ export default function ReservationPage() {
       .catch(() => setError('Could not load slot details.'))
   }, [slotId])
 
-  // When start date changes, keep end date >= start date
   const handleStartDateChange = (date) => {
     setStartDate(date)
     if (endDate && endDate < date) setEndDate(date)
   }
 
-  // When start time changes, if start >= end (same date), advance end by 1 hour
   const handleStartTimeChange = (time) => {
     setStartTime(time)
     if (startDate === endDate && endTime && time >= endTime) {
@@ -136,21 +225,34 @@ export default function ReservationPage() {
     }
   }
 
-  const recalculate = useCallback(() => {
-    if (!startDate || !startTime || !endDate || !endTime || !slot) {
-      setDuration(0); setTotalAmount(0); return
+  // Debounced pricing estimate fetch — replaces client-side calculation
+  const fetchEstimate = useCallback(() => {
+    if (!startDate || !startTime || !endDate || !endTime || !slotId) {
+      setDuration(0); setEstimate(null); return
     }
     const start  = new Date(`${startDate}T${startTime}`)
     const end    = new Date(`${endDate}T${endTime}`)
     const diffMs = end - start
-    if (diffMs <= 0) { setDuration(0); setTotalAmount(0); return }
-    const mins  = Math.round(diffMs / 60000)
-    const hours = mins / 60
-    setDuration(mins)
-    setTotalAmount(parseFloat((hours * slot.hourlyRate).toFixed(2)))
-  }, [startDate, startTime, endDate, endTime, slot])
+    if (diffMs <= 0) { setDuration(0); setEstimate(null); return }
+    setDuration(Math.round(diffMs / 60000))
 
-  useEffect(() => { recalculate() }, [recalculate])
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setEstimateLoading(true)
+      pricingService.getEstimate(
+        parseInt(slotId),
+        `${startDate}T${startTime}`,
+        `${endDate}T${endTime}`
+      )
+        .then(data => setEstimate(data))
+        .catch(() => setEstimate(null))
+        .finally(() => setEstimateLoading(false))
+    }, 600)
+  }, [startDate, startTime, endDate, endTime, slotId])
+
+  useEffect(() => { fetchEstimate() }, [fetchEstimate])
+
+  const totalAmount = estimate?.totalAmount ?? 0
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -161,14 +263,19 @@ export default function ReservationPage() {
     setLoading(true)
     try {
       const res = await reservationService.create({
-        userID: user.id, slotID: parseInt(slotId),
+        slotID: parseInt(slotId),
         startTime: `${startDate}T${startTime}`,
         endTime:   `${endDate}T${endTime}`,
+        vehicleNumber: vehicleNumber.trim() || null,
       })
       setReservation(res)
+
+      // Amount sent here will be overridden server-side; send estimate as reference
       const payment = await reservationService.pay(res.id, {
         amount: totalAmount, paymentMethod,
       })
+      setPaidAmount(payment.amount ?? totalAmount)
+
       if (payment.paymentStatus === 'Success') {
         const qr = await reservationService.getQrCode(res.id)
         setQrCode(qr.qrCode)
@@ -183,195 +290,191 @@ export default function ReservationPage() {
     }
   }
 
-  // ── Confirmed (Card / UPI) ───────────────────────────────────────────────
+  // ── Confirmed step ──────────────────────────────────────────────────────────
   if (step === 'done') return (
-    <div style={page}><div style={card}>
-      <div style={{ fontSize: '2.5rem', marginBottom: '4px', textAlign: 'center' }}>✅</div>
-      <h2 style={{ color: '#34a853', marginBottom: '4px', textAlign: 'center' }}>Booking Confirmed!</h2>
-      <p style={{ color: '#666', fontSize: '0.9rem', textAlign: 'center', marginBottom: '4px' }}>
-        Payment of <strong>₹{totalAmount.toFixed(2)}</strong> received via {paymentMethod}
-      </p>
-
-      {reservation && (
-        <>
-          <p style={{ color: '#444', fontWeight: '600', fontSize: '0.95rem', margin: '12px 0 0', textAlign: 'center' }}>
-            📍 {reservation.locationName}
-          </p>
-          <p style={{ color: '#888', fontSize: '0.8rem', textAlign: 'center', margin: '2px 0 0' }}>
-            {reservation.locationAddress}, {reservation.locationCity}
-          </p>
-          <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
-          <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
-        </>
-      )}
-
-      <div style={{ marginTop: '16px', textAlign: 'center' }}>
-        <QRCodeDisplay base64={qrCode} />
-        <p style={{ color: '#888', fontSize: '0.8rem', margin: '10px 0 20px' }}>
-          Show this QR code at the parking entrance
-        </p>
-        <button style={btn} onClick={() => navigate('/bookings')}>View My Bookings</button>
-      </div>
-    </div></div>
-  )
-
-  // ── Cash (pending) ───────────────────────────────────────────────────────
-  if (step === 'cash') return (
-    <div style={page}><div style={card}>
-      <div style={{ fontSize: '2.5rem', marginBottom: '4px', textAlign: 'center' }}>🅿️</div>
-      <h2 style={{ color: '#f9a825', marginBottom: '4px', textAlign: 'center' }}>Slot Reserved!</h2>
-      <p style={{ color: '#666', fontSize: '0.9rem', textAlign: 'center', marginBottom: '4px' }}>
-        Pay at the counter upon arrival.
-      </p>
-
-      {reservation && (
-        <>
-          <p style={{ color: '#444', fontWeight: '600', fontSize: '0.95rem', margin: '12px 0 0', textAlign: 'center' }}>
-            📍 {reservation.locationName}
-          </p>
-          <p style={{ color: '#888', fontSize: '0.8rem', textAlign: 'center', margin: '2px 0 0' }}>
-            {reservation.locationAddress}, {reservation.locationCity}
-          </p>
-          <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
-          <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
-        </>
-      )}
-
-      <div style={summaryBox}>
-        <SummaryRow label="Amount Due"  value={`₹${totalAmount.toFixed(2)}`} valueStyle={{ color: '#f9a825', fontWeight: '700' }} />
-        <SummaryRow label="Payment"     value="Cash at Counter" />
-        <SummaryRow label="Status"      value="⏳ Pending"  valueStyle={{ color: '#f9a825' }} />
-      </div>
-      <p style={{ color: '#888', fontSize: '0.8rem', margin: '8px 0 16px', textAlign: 'center' }}>
-        QR code will be generated after counter confirms payment
-      </p>
-      <button style={btn} onClick={() => navigate('/bookings')}>View My Bookings</button>
-    </div></div>
-  )
-
-  // ── Form ─────────────────────────────────────────────────────────────────
-  return (
-    <div style={page}>
-      <div style={card}>
-        <h2 style={{ color: '#1a73e8', marginBottom: '4px' }}>Reserve Slot</h2>
-
-        {slot && (
-          <div style={slotBadge}>
-            <span>🅿️ <strong>{slot.slotNumber}</strong></span>
-            <span style={dot} /><span>{slot.slotType}</span>
-            <span style={dot} /><span>Floor {slot.floorNumber}</span>
-            <span style={dot} /><span style={{ color: '#1a73e8', fontWeight: '600' }}>₹{slot.hourlyRate}/hr</span>
-          </div>
-        )}
-
-        {error && <p style={errorStyle}>{error}</p>}
-
-        <form onSubmit={handleSubmit}>
-
-          {/* ── Start ── */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <p style={{ ...groupLabel, margin: 0 }}>Start</p>
-            <span style={{ fontSize: '0.75rem', color: '#888' }}>Current time: <strong style={{ color: '#1a73e8' }}>{nowLabel}</strong></span>
-          </div>
-          <div style={row}>
-            <div style={half}>
-              <label style={label}>Date</label>
-              <input style={input} type="date" value={startDate}
-                onChange={e => handleStartDateChange(e.target.value)} required />
-            </div>
-            <div style={half}>
-              <label style={label}>Time</label>
-              <TimePicker value={startTime} onChange={handleStartTimeChange} />
+    <div className="flex justify-center px-4 py-8">
+      <Card className="w-full max-w-lg">
+        <CardContent className="p-6 space-y-4 text-center">
+          <div className="flex justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
+              <CheckCircle2 className="h-9 w-9 text-green-600 dark:text-green-400" />
             </div>
           </div>
-
-          {/* ── End ── */}
-          <p style={groupLabel}>End</p>
-          <div style={row}>
-            <div style={half}>
-              <label style={label}>Date</label>
-              <input style={input} type="date" value={endDate}
-                onChange={e => setEndDate(e.target.value)} required />
-            </div>
-            <div style={half}>
-              <label style={label}>Time</label>
-              <TimePicker value={endTime} onChange={setEndTime} />
-            </div>
+          <div>
+            <h2 className="text-xl font-bold text-green-700 dark:text-green-400">Booking Confirmed!</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Payment of <strong>₹{paidAmount.toFixed(2)}</strong> received via {paymentMethod}
+            </p>
           </div>
-
-          {/* ── Live summary ── */}
-          {duration > 0 && slot && (
-            <div style={summaryBox}>
-              <SummaryRow label="Duration" value={formatDuration(duration)} />
-              <SummaryRow label="Rate"     value={`₹${slot.hourlyRate}/hour`} />
-              <div style={{ borderTop: '1px solid #e8eaed', marginTop: '6px', paddingTop: '10px' }}>
-                <SummaryRow
-                  label="Total"
-                  value={`₹${totalAmount.toFixed(2)}`}
-                  labelStyle={{ fontWeight: '700', color: '#202124' }}
-                  valueStyle={{ fontWeight: '700', color: '#1a73e8', fontSize: '1.1rem' }}
-                />
+          {reservation && (
+            <div className="text-left space-y-3">
+              <div className="rounded-lg bg-muted p-3">
+                <p className="font-semibold text-sm">{reservation.locationName}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{reservation.locationAddress}, {reservation.locationCity}</p>
               </div>
+              <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
+              <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
+            </div>
+          )}
+          <div className="space-y-2">
+            <QRCodeDisplay base64={qrCode} />
+            <p className="text-xs text-muted-foreground">Show this QR code at the parking entrance</p>
+          </div>
+          <Button className="w-full" onClick={() => navigate('/bookings')}>View My Bookings</Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  // ── Cash / pending step ─────────────────────────────────────────────────────
+  if (step === 'cash') return (
+    <div className="flex justify-center px-4 py-8">
+      <Card className="w-full max-w-lg border-yellow-200 dark:border-yellow-800">
+        <CardContent className="p-6 space-y-4 text-center">
+          <div className="flex justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-950">
+              <Clock className="h-9 w-9 text-yellow-600 dark:text-yellow-400" />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-yellow-700 dark:text-yellow-400">Slot Reserved!</h2>
+            <p className="text-sm text-muted-foreground mt-1">Pay at the counter upon arrival.</p>
+          </div>
+          {reservation && (
+            <div className="text-left space-y-3">
+              <div className="rounded-lg bg-muted p-3">
+                <p className="font-semibold text-sm">{reservation.locationName}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{reservation.locationAddress}, {reservation.locationCity}</p>
+              </div>
+              <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
+              <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
+            </div>
+          )}
+          <div className="rounded-lg bg-muted p-4 text-left space-y-1">
+            <SummaryRow label="Amount Due" value={`₹${paidAmount.toFixed(2)}`} valueClassName="text-yellow-700 dark:text-yellow-400 font-bold" />
+            <SummaryRow label="Payment" value="Cash at Counter" />
+            <SummaryRow label="Status" value="Pending" valueClassName="text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <p className="text-xs text-muted-foreground">QR code will be generated after counter confirms payment</p>
+          <Button className="w-full" onClick={() => navigate('/bookings')}>View My Bookings</Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  // ── Form step ───────────────────────────────────────────────────────────────
+  return (
+    <div className="flex justify-center px-4 py-4">
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle>Reserve Slot</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Slot badge */}
+          {slot && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950 px-4 py-2.5 text-sm">
+              <Badge variant="default" className="text-xs">{slot.slotNumber}</Badge>
+              <span className="text-muted-foreground">{slot.slotType}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">Floor {slot.floorNumber}</span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                Current time: <strong className="text-foreground">{nowLabel}</strong>
+              </span>
             </div>
           )}
 
-          {/* ── Payment Method ── */}
-          <label style={label}>Payment Method</label>
-          <div style={paymentGrid}>
-            {[
-              { id: 'Card', icon: '💳', sub: null },
-              { id: 'UPI',  icon: '📱', sub: null },
-              { id: 'Cash', icon: '💵', sub: 'Pay at counter' },
-            ].map(({ id, icon, sub }) => (
-              <button key={id} type="button"
-                style={{ ...payOpt, ...(paymentMethod === id ? paySelected : {}) }}
-                onClick={() => setPaymentMethod(id)}
-              >
-                <span style={{ fontSize: '1.4rem' }}>{icon}</span>
-                <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{id}</span>
-                {sub && <span style={{ fontSize: '0.7rem', color: '#f9a825' }}>{sub}</span>}
-              </button>
-            ))}
-          </div>
+          {error && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
-          <button style={{ ...btn, opacity: loading ? 0.7 : 1 }} type="submit" disabled={loading}>
-            {loading ? 'Processing…'
-              : paymentMethod === 'Cash'
-                ? `Reserve — Pay ₹${totalAmount > 0 ? totalAmount.toFixed(2) : '—'} at Counter`
-                : `Confirm & Pay ₹${totalAmount > 0 ? totalAmount.toFixed(2) : '—'}`}
-          </button>
-        </form>
-      </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Start */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">Start</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Date</Label>
+                  <Input type="date" value={startDate} onChange={e => handleStartDateChange(e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Time</Label>
+                  <TimePicker value={startTime} onChange={handleStartTimeChange} />
+                </div>
+              </div>
+            </div>
+
+            {/* End */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">End</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Date</Label>
+                  <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Time</Label>
+                  <TimePicker value={endTime} onChange={setEndTime} />
+                </div>
+              </div>
+            </div>
+
+            {/* Pricing + demand card (server-calculated) */}
+            {(duration > 0 || estimateLoading) && (
+              <PricingCard estimate={estimate} loading={estimateLoading} />
+            )}
+
+            {/* Vehicle Number */}
+            <div className="space-y-1.5">
+              <Label htmlFor="vehicleNumber">
+                Vehicle Number <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="vehicleNumber"
+                placeholder="e.g. KL 07 AB 1234"
+                value={vehicleNumber}
+                onChange={e => setVehicleNumber(e.target.value.toUpperCase())}
+                maxLength={20}
+              />
+            </div>
+
+            {/* Payment method */}
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {PAYMENT_OPTIONS.map(({ id, label, icon: Icon, sub }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setPaymentMethod(id)}
+                    className={cn(
+                      'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors text-sm font-medium',
+                      paymentMethod === id
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-border bg-background text-muted-foreground hover:border-primary/50'
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{label}</span>
+                    {sub && <span className="text-xs text-yellow-600 dark:text-yellow-400 font-normal">{sub}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading || estimateLoading || !estimate}>
+              {loading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
+              ) : paymentMethod === 'Cash' ? (
+                `Reserve — Pay ₹${totalAmount > 0 ? totalAmount.toFixed(2) : '—'} at Counter`
+              ) : (
+                `Confirm & Pay ₹${totalAmount > 0 ? totalAmount.toFixed(2) : '—'}`
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-
-function SummaryRow({ label, value, labelStyle = {}, valueStyle = {} }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0' }}>
-      <span style={{ color: '#666', fontSize: '0.88rem', ...labelStyle }}>{label}</span>
-      <span style={{ color: '#202124', fontSize: '0.88rem', ...valueStyle }}>{value}</span>
-    </div>
-  )
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────
-const page         = { display: 'flex', justifyContent: 'center', padding: '40px 24px' }
-const card         = { background: '#fff', padding: '36px', borderRadius: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.1)', width: '480px', maxWidth: '100%', boxSizing: 'border-box' }
-const slotBadge    = { display: 'flex', alignItems: 'center', gap: '8px', background: '#f0f4ff', borderRadius: '8px', padding: '10px 14px', marginBottom: '20px', fontSize: '0.9rem', color: '#444', flexWrap: 'wrap' }
-const dot          = { width: '4px', height: '4px', borderRadius: '50%', background: '#aaa', display: 'inline-block' }
-const groupLabel   = { fontWeight: '700', color: '#1a73e8', margin: '0 0 8px', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em' }
-const row          = { display: 'flex', gap: '12px', marginBottom: '14px' }
-const half         = { flex: 1, minWidth: 0 }
-const label        = { display: 'block', marginBottom: '5px', fontWeight: '500', color: '#555', fontSize: '0.85rem' }
-const input        = { display: 'block', width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.95rem', boxSizing: 'border-box' }
-const timeRow      = { display: 'flex', alignItems: 'center', gap: '4px' }
-const timeSelect   = { flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.95rem', textAlign: 'center', background: '#fff', cursor: 'pointer' }
-const timeSep      = { fontWeight: '700', color: '#444', fontSize: '1.1rem' }
-const summaryBox   = { background: '#f8f9fa', borderRadius: '10px', padding: '14px 16px', marginBottom: '18px' }
-const paymentGrid  = { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', margin: '8px 0 18px' }
-const payOpt       = { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '12px 8px', borderRadius: '10px', border: '2px solid #e0e0e0', background: '#fafafa', cursor: 'pointer' }
-const paySelected  = { border: '2px solid #1a73e8', background: '#e8f0fe' }
-const btn          = { width: '100%', padding: '13px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer', fontWeight: '600' }
-const errorStyle   = { background: '#fce8e6', color: '#d93025', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', fontSize: '0.9rem' }
-const navBtn       = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '12px', background: '#34a853', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', boxSizing: 'border-box', marginBottom: '12px' }

@@ -12,9 +12,13 @@ public class ParkingLocation
     public DateTime CreatedDate { get; set; }
     public bool IsActive { get; set; }
 
+    // Multi-tenant: every location belongs to one Parking Owner (nullable for migration compatibility)
+    public int? OwnerID { get; set; }
+    public User? Owner { get; set; }
+
     public ICollection<ParkingSlot> ParkingSlots { get; set; } = new List<ParkingSlot>();
 
-    public static ParkingLocation Create(string locationName, string address, string city, int totalSlots)
+    public static ParkingLocation Create(string locationName, string address, string city, int totalSlots, int ownerId)
     {
         if (string.IsNullOrWhiteSpace(locationName))
             throw new DomainException("Location name cannot be empty.");
@@ -28,14 +32,18 @@ public class ParkingLocation
         if (totalSlots <= 0)
             throw new DomainException("Total slots must be greater than zero.");
 
+        if (ownerId <= 0)
+            throw new DomainException("Location must belong to a valid owner.");
+
         return new ParkingLocation
         {
             LocationName = locationName.Trim(),
-            Address = address.Trim(),
-            City = city.Trim(),
-            TotalSlots = totalSlots,
-            CreatedDate = DateTime.UtcNow,
-            IsActive = true
+            Address      = address.Trim(),
+            City         = city.Trim(),
+            TotalSlots   = totalSlots,
+            OwnerID      = ownerId,
+            CreatedDate  = DateTime.UtcNow,
+            IsActive     = true
         };
     }
 }

@@ -21,8 +21,14 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const updateProfile = (data) => {
+    const updated = { ...user, ...data }
+    localStorage.setItem('smartpark_user', JSON.stringify(updated))
+    setUser(updated)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

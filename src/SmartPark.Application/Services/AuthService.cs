@@ -1,6 +1,7 @@
 using SmartPark.Application.DTOs.Auth;
 using SmartPark.Application.Interfaces;
 using SmartPark.Domain.Entities;
+using SmartPark.Domain.Enums;
 using SmartPark.Domain.Exceptions;
 using SmartPark.Domain.Interfaces;
 
@@ -31,7 +32,7 @@ public class AuthService : IAuthService
             request.Email,
             _hasher.Hash(request.Password),
             request.PhoneNumber,
-            request.Role);
+            UserRole.Customer);
 
         await _uow.Users.AddAsync(user);
         await _uow.SaveChangesAsync();
@@ -40,6 +41,8 @@ public class AuthService : IAuthService
             user.ID,
             _tokenService.GenerateToken(user),
             user.UserID,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Role,
             _tokenService.GetExpiry());
@@ -60,6 +63,8 @@ public class AuthService : IAuthService
             user.ID,
             _tokenService.GenerateToken(user),
             user.UserID,
+            user.FirstName,
+            user.LastName,
             user.Email,
             user.Role,
             _tokenService.GetExpiry());

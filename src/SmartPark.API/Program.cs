@@ -6,6 +6,7 @@ using SmartPark.API.Middleware;
 using SmartPark.Application;
 using SmartPark.Infrastructure;
 using SmartPark.Infrastructure.Data;
+using SmartPark.Infrastructure.Hubs;
 
 // Npgsql: treat DateTime with Unspecified kind as UTC (avoids "Cannot write Unspecified to timestamptz" errors)
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -14,7 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Serialize enums as strings (e.g. "Admin" not 0)
 builder.Services.ConfigureHttpJsonOptions(opts =>
-    opts.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+{
+    opts.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    opts.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 
 // Application + Infrastructure layers
 builder.Services.AddApplication();
@@ -34,6 +38,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+        // SignalR WebSocket connections send the JWT as a query param instead of a header
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -74,14 +90,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// CORS for React frontend
+// CORS for React frontend — AllowCredentials is required for SignalR WebSocket handshake
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("SmartParkUI", policy =>
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
+
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -104,6 +123,10 @@ app.MapParkingLocationEndpoints();
 app.MapParkingSlotEndpoints();
 app.MapReservationEndpoints();
 app.MapPaymentEndpoints();
+app.MapAnalyticsEndpoints();
+app.MapOwnerEndpoints();
+app.MapPricingEndpoints();
+app.MapHub<ParkingHub>("/hubs/parking");
 
 // Seed database on startup
 using (var scope = app.Services.CreateScope())

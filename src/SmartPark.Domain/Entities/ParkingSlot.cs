@@ -18,8 +18,8 @@ public class ParkingSlot
     public ParkingLocation Location { get; set; } = null!;
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 
-    // Rule: Only active (Available) slots can be reserved
-    public bool CanBeReserved => Status == SlotStatus.Available;
+    // Rule: Slots under Maintenance cannot be reserved; availability is determined by time overlap, not this flag
+    public bool CanBeReserved => Status != SlotStatus.Maintenance;
 
     // Rule: One active reservation at a time — derived from Reservations collection
     public bool HasActiveReservation =>

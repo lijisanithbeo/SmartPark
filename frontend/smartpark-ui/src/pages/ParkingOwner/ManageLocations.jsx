@@ -1,60 +1,303 @@
 import { useEffect, useState } from 'react'
-import parkingService from '../../services/parkingService'
+import { toast } from 'sonner'
+import { Loader2, MapPin, Pencil, Trash2 } from 'lucide-react'
+import parkingService from '@/services/parkingService'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { DataTable } from '@/components/ui/data-table'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+
+const EMPTY_FORM = { locationName: '', address: '', city: '', totalSlots: '' }
 
 export default function ManageLocations() {
   const [locations, setLocations] = useState([])
-  const [form, setForm] = useState({ locationName: '', address: '', city: '', totalSlots: '' })
-  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState({ locationName: '', address: '', city: '', totalSlots: '', isActive: true })
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
 
-  useEffect(() => { parkingService.getLocations().then(setLocations) }, [])
+  useEffect(() => {
+    parkingService.getMyLocations()
+      .then(setLocations)
+      .catch(() => toast.error('Failed to load locations'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
   const handleCreate = async (e) => {
-    e.preventDefault(); setError('')
+    e.preventDefault()
+    setSubmitting(true)
     try {
-      const newLoc = await parkingService.createLocation({ ...form, totalSlots: parseInt(form.totalSlots) })
+      const newLoc = await parkingService.createLocation({
+        ...form,
+        totalSlots: parseInt(form.totalSlots),
+      })
       setLocations(l => [...l, newLoc])
-      setForm({ locationName: '', address: '', city: '', totalSlots: '' })
-    } catch (err) { setError(err.response?.data?.error || 'Failed to create location') }
+      setForm(EMPTY_FORM)
+      toast.success('Location added successfully')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create location')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleDelete = async (id) => {
-    await parkingService.deleteLocation(id)
-    setLocations(l => l.filter(x => x.id !== id))
+  const openEdit = (row) => {
+    setEditTarget(row)
+    setEditForm({
+      locationName: row.locationName,
+      address:      row.address,
+      city:         row.city,
+      totalSlots:   String(row.totalSlots),
+      isActive:     row.isActive !== false,
+    })
   }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const updated = await parkingService.updateLocation(editTarget.id, {
+        locationName: editForm.locationName,
+        address:      editForm.address,
+        city:         editForm.city,
+        totalSlots:   parseInt(editForm.totalSlots),
+        isActive:     editForm.isActive,
+      })
+      setLocations(l => l.map(x => x.id === updated.id ? updated : x))
+      toast.success('Location updated successfully')
+      setEditTarget(null)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update location')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    try {
+      await parkingService.deleteLocation(deleteTarget.id)
+      setLocations(l => l.filter(x => x.id !== deleteTarget.id))
+      toast.success('Location deleted')
+    } catch {
+      toast.error('Failed to delete location')
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
+
+  const columns = [
+    { key: 'locationName', header: 'Name' },
+    { key: 'city',         header: 'City' },
+    { key: 'address',      header: 'Address' },
+    {
+      key: 'totalSlots',
+      header: 'Total Slots',
+      render: (val) => <span className="font-medium">{val}</span>,
+    },
+    {
+      key: 'isActive',
+      header: 'Status',
+      render: (val) => (
+        <Badge variant={val !== false ? 'default' : 'secondary'} className="text-xs">
+          {val !== false ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'id',
+      header: 'Actions',
+      render: (_, row) => (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+            <Pencil className="h-3.5 w-3.5 mr-1" />
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={() => setDeleteTarget({ id: row.id, name: row.locationName })}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div style={page}>
-      <h2 style={{ color: '#1a73e8', marginBottom: '24px' }}>Manage Locations</h2>
-      <div style={formCard}>
-        <h3 style={{ marginBottom: '16px' }}>Add New Location</h3>
-        {error && <p style={errorStyle}>{error}</p>}
-        <form onSubmit={handleCreate}>
-          {['locationName','address','city'].map(f => (
-            <input key={f} style={input} placeholder={f} value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} required />
-          ))}
-          <input style={input} type="number" placeholder="Total Slots" value={form.totalSlots} onChange={e => setForm({ ...form, totalSlots: e.target.value })} required />
-          <button style={btn} type="submit">Add Location</button>
-        </form>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Manage Locations</h2>
+        <p className="text-muted-foreground mt-1">Add and manage your parking locations</p>
       </div>
-      <div style={{ marginTop: '24px' }}>
-        {locations.map(loc => (
-          <div key={loc.id} style={row}>
-            <div>
-              <strong>{loc.locationName}</strong> — {loc.city}
-              <p style={{ color: '#666', fontSize: '0.9rem' }}>{loc.address} · {loc.totalSlots} total slots</p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Add location form */}
+        <Card className="lg:col-span-1 h-fit">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base">Add Location</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="locationName">Location Name</Label>
+                <Input
+                  id="locationName"
+                  placeholder="e.g. Central Plaza Parking"
+                  value={form.locationName}
+                  onChange={set('locationName')}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  placeholder="Street address"
+                  value={form.address}
+                  onChange={set('address')}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  placeholder="City name"
+                  value={form.city}
+                  onChange={set('city')}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="totalSlots">Total Slots</Label>
+                <Input
+                  id="totalSlots"
+                  type="number"
+                  min="1"
+                  placeholder="Number of slots"
+                  value={form.totalSlots}
+                  onChange={set('totalSlots')}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding…
+                  </>
+                ) : (
+                  'Add Location'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Locations table */}
+        <div className="lg:col-span-2">
+          <DataTable
+            columns={columns}
+            data={locations}
+            loading={loading}
+            searchable
+            searchPlaceholder="Search locations…"
+            emptyMessage="No locations yet."
+            emptyIcon={MapPin}
+            pageSize={8}
+          />
+        </div>
+      </div>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-locationName">Location Name</Label>
+              <Input
+                id="edit-locationName"
+                value={editForm.locationName}
+                onChange={e => setEditForm(f => ({ ...f, locationName: e.target.value }))}
+              />
             </div>
-            <button style={delBtn} onClick={() => handleDelete(loc.id)}>Delete</button>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={editForm.address}
+                onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-city">City</Label>
+                <Input
+                  id="edit-city"
+                  value={editForm.city}
+                  onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-totalSlots">Total Slots</Label>
+                <Input
+                  id="edit-totalSlots"
+                  type="number"
+                  min="1"
+                  value={editForm.totalSlots}
+                  onChange={e => setEditForm(f => ({ ...f, totalSlots: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="edit-isActive" className="cursor-pointer">Active</Label>
+              <input
+                id="edit-isActive"
+                type="checkbox"
+                checked={editForm.isActive}
+                onChange={e => setEditForm(f => ({ ...f, isActive: e.target.checked }))}
+                className="h-4 w-4 accent-primary cursor-pointer"
+              />
+            </div>
           </div>
-        ))}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Location"
+        description={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   )
 }
-
-const page     = { padding: '32px 24px', maxWidth: '800px', margin: '0 auto' }
-const formCard = { background: '#fff', borderRadius: '10px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }
-const input    = { display: 'block', width: '100%', padding: '10px', marginBottom: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem' }
-const btn      = { padding: '10px 24px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }
-const row      = { background: '#fff', borderRadius: '8px', padding: '16px 20px', marginBottom: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
-const delBtn   = { padding: '6px 14px', background: '#d93025', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }
-const errorStyle = { background: '#fce8e6', color: '#d93025', padding: '10px', borderRadius: '6px', marginBottom: '12px' }

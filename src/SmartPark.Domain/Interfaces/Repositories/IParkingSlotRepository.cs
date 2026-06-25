@@ -9,4 +9,5 @@ public interface IParkingSlotRepository : IGenericRepository<ParkingSlot>
     Task<IEnumerable<ParkingSlot>> GetByLocationIdAsync(int locationId);
     Task<IEnumerable<ParkingSlot>> GetAvailableSlotsByLocationAsync(int locationId);
     Task<int> GetAvailableSlotCountAsync(int locationId);
+    Task<IEnumerable<ParkingSlot>> GetByOwnerAsync(int ownerId);
 }

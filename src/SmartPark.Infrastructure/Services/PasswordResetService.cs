@@ -57,6 +57,8 @@ public class PasswordResetService : IPasswordResetService
 
     public async Task<bool> ResetPasswordAsync(string token, string newPassword)
     {
+        if (newPassword.Length < 8) return false;
+
         var hashedToken = HashToken(token);
 
         var resetToken = await _context.PasswordResetTokens

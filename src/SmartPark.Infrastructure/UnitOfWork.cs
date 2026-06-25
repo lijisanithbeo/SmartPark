@@ -1,3 +1,6 @@
+using System.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using SmartPark.Domain.Interfaces;
 using SmartPark.Domain.Interfaces.Repositories;
 using SmartPark.Infrastructure.Data;
@@ -14,6 +17,8 @@ public class UnitOfWork : IUnitOfWork
     public IParkingSlotRepository ParkingSlots { get; }
     public IReservationRepository Reservations { get; }
     public IPaymentRepository Payments { get; }
+    public IPricingConfigRepository PricingConfigs { get; }
+    public IAnalyticsRepository Analytics { get; }
 
     public UnitOfWork(SmartParkDbContext context)
     {
@@ -23,9 +28,17 @@ public class UnitOfWork : IUnitOfWork
         ParkingSlots = new ParkingSlotRepository(context);
         Reservations = new ReservationRepository(context);
         Payments = new PaymentRepository(context);
+        PricingConfigs = new PricingConfigRepository(context);
+        Analytics = new AnalyticsRepository(context);
     }
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
+
+    public async Task<ITransaction> BeginTransactionAsync(IsolationLevel level = IsolationLevel.ReadCommitted)
+    {
+        var tx = await _context.Database.BeginTransactionAsync(level);
+        return new Transaction(tx);
+    }
 
     public void Dispose() => _context.Dispose();
 }

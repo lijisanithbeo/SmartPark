@@ -16,6 +16,7 @@ public class Reservation
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public ReservationStatus Status { get; set; }
+    public string? VehicleNumber { get; set; }
 
     // Rule 6: Cancelled reservation is not an active booking
     public bool IsActive => Status != ReservationStatus.Cancelled;

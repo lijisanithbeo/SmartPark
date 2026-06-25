@@ -21,6 +21,10 @@ public class ExceptionMiddleware
         {
             await _next(context);
         }
+        catch (ForbiddenException ex)
+        {
+            await WriteErrorAsync(context, HttpStatusCode.Forbidden, ex.Message);
+        }
         catch (DomainException ex)
         {
             await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Message);

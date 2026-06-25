@@ -12,4 +12,5 @@ public record ReservationDto(
     DateTime StartTime,
     DateTime EndTime,
     string Status,
-    bool IsActive);
+    bool IsActive,
+    string? VehicleNumber = null);

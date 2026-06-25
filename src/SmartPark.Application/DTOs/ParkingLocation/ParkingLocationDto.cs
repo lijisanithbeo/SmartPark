@@ -7,4 +7,6 @@ public record ParkingLocationDto(
     string City,
     int TotalSlots,
     int AvailableSlots,
-    bool IsActive);
+    bool IsActive,
+    int OwnerID,
+    string OwnerName);

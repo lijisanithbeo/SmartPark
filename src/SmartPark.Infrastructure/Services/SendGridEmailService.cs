@@ -34,6 +34,8 @@ public class SendGridEmailService : IEmailService
             """;
 
         var msg = MailHelper.CreateSingleEmail(from, to, subject, plainText, html);
-        await client.SendEmailAsync(msg);
+        var response = await client.SendEmailAsync(msg);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"SendGrid returned {(int)response.StatusCode}");
     }
 }

@@ -1,6 +1,7 @@
 import api from './api'
 
 const paymentService = {
+  getAll:          ()     => api.get('/payments').then(r => r.data),
   create:          (data) => api.post('/payments', data).then(r => r.data),
   getById:         (id)   => api.get(`/payments/${id}`).then(r => r.data),
   getByReservation:(id)   => api.get(`/payments/reservation/${id}`).then(r => r.data),

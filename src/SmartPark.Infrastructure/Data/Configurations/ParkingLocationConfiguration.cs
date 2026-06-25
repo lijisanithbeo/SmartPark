@@ -18,6 +18,16 @@ public class ParkingLocationConfiguration : IEntityTypeConfiguration<ParkingLoca
         builder.Property(l => l.CreatedDate).IsRequired();
         builder.Property(l => l.IsActive).IsRequired();
 
+        builder.Property(l => l.OwnerID).IsRequired(false);
+
+        builder.HasOne(l => l.Owner)
+               .WithMany(u => u.OwnedLocations)
+               .HasForeignKey(l => l.OwnerID)
+               .IsRequired(false)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(l => l.OwnerID);
+
         builder.HasMany(l => l.ParkingSlots)
                .WithOne(s => s.Location)
                .HasForeignKey(s => s.LocationID)

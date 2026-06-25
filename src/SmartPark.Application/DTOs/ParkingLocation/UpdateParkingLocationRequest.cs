@@ -5,4 +5,5 @@ public record UpdateParkingLocationRequest(
     string Address,
     string City,
     int TotalSlots,
-    bool IsActive);
+    bool IsActive,
+    int? OwnerID = null);

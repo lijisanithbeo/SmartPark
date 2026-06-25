@@ -1,6 +1,7 @@
 import api from './api'
 
 const reservationService = {
+  getAll:      ()       => api.get('/reservations').then(r => r.data),
   create:      (data)   => api.post('/reservations', data).then(r => r.data),
   getById:     (id)     => api.get(`/reservations/${id}`).then(r => r.data),
   getByUser:   (userId) => api.get(`/reservations/user/${userId}`).then(r => r.data),

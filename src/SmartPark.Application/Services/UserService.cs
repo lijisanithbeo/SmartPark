@@ -38,6 +38,25 @@ public class UserService : IUserService
         return user.IsActive;
     }
 
+    public async Task<UserDto?> UpdateAsync(int id, UpdateUserRequest request)
+    {
+        var user = await _uow.Users.GetByIdAsync(id)
+            ?? throw new Domain.Exceptions.DomainException("User not found.");
+
+        var normalizedEmail = request.Email.Trim().ToLower();
+        if (user.Email != normalizedEmail && await _uow.Users.EmailExistsAsync(normalizedEmail))
+            throw new Domain.Exceptions.DomainException("Email is already in use by another account.");
+
+        user.FirstName   = request.FirstName.Trim();
+        user.LastName    = request.LastName.Trim();
+        user.Email       = normalizedEmail;
+        user.PhoneNumber = request.PhoneNumber.Trim();
+
+        _uow.Users.Update(user);
+        await _uow.SaveChangesAsync();
+        return ToDto(user);
+    }
+
     private static UserDto ToDto(Domain.Entities.User u) =>
         new(u.ID, u.UserID, u.FirstName, u.LastName, u.Email, u.PhoneNumber, u.Role, u.CreatedDate, u.IsActive);
 }

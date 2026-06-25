@@ -17,4 +17,9 @@ public class PaymentRepository : BaseRepository<Payment>, IPaymentRepository
         await _dbSet.Include(p => p.Reservation)
                     .Where(p => p.Reservation.UserID == userId)
                     .ToListAsync();
+
+    public async Task<IEnumerable<Payment>> GetAllWithDetailsAsync() =>
+        await _dbSet.Include(p => p.Reservation).ThenInclude(r => r.User)
+                    .OrderByDescending(p => p.PaymentDate)
+                    .ToListAsync();
 }

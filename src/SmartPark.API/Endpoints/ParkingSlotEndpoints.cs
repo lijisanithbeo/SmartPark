@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using SmartPark.Application.DTOs.ParkingSlot;
 using SmartPark.Application.Interfaces;
 
@@ -18,19 +19,26 @@ public static class ParkingSlotEndpoints
         group.MapGet("/{id:int}", async (int id, IParkingSlotService service) =>
             Results.Ok(await service.GetByIdAsync(id)));
 
-        group.MapPost("/", async (CreateParkingSlotRequest request, IParkingSlotService service) =>
+        group.MapPost("/", async (CreateParkingSlotRequest request, IParkingSlotService service, HttpContext ctx) =>
         {
-            var result = await service.CreateAsync(request);
+            var callerId = int.Parse(ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isAdmin  = ctx.User.IsInRole("Admin");
+            var result   = await service.CreateAsync(request, callerId, isAdmin);
             return Results.Created($"/api/parking-slots/{result.ID}", result);
         }).RequireAuthorization("AdminOrOwner");
 
-        group.MapPut("/{id:int}", async (int id, UpdateParkingSlotRequest request, IParkingSlotService service) =>
-            Results.Ok(await service.UpdateAsync(id, request))
-        ).RequireAuthorization("AdminOrOwner");
-
-        group.MapDelete("/{id:int}", async (int id, IParkingSlotService service) =>
+        group.MapPut("/{id:int}", async (int id, UpdateParkingSlotRequest request, IParkingSlotService service, HttpContext ctx) =>
         {
-            await service.DeleteAsync(id);
+            var callerId = int.Parse(ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isAdmin  = ctx.User.IsInRole("Admin");
+            return Results.Ok(await service.UpdateAsync(id, request, callerId, isAdmin));
+        }).RequireAuthorization("AdminOrOwner");
+
+        group.MapDelete("/{id:int}", async (int id, IParkingSlotService service, HttpContext ctx) =>
+        {
+            var callerId = int.Parse(ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isAdmin  = ctx.User.IsInRole("Admin");
+            await service.DeleteAsync(id, callerId, isAdmin);
             return Results.NoContent();
         }).RequireAuthorization("AdminOrOwner");
     }

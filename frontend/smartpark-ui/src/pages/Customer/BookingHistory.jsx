@@ -1,75 +1,211 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../context/AuthContext'
-import reservationService from '../../services/reservationService'
-import QRCodeDisplay from '../../components/QRCode/QRCodeDisplay'
+import { useAuth } from '@/context/AuthContext'
+import { toast } from 'sonner'
+import reservationService from '@/services/reservationService'
+import QRCodeDisplay from '@/components/QRCode/QRCodeDisplay'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { BookOpen, QrCode, Navigation, X, Loader2 } from 'lucide-react'
+import { getFreshGPS, formatDestination, buildMapsUrl } from '@/lib/geolocation'
+
+const STATUS_VARIANT = {
+  Confirmed: 'default',
+  Cancelled: 'destructive',
+  Pending:   'secondary',
+}
+
+function BookingCardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-3">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1.5 flex-1">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-64" />
+            <Skeleton className="h-5 w-20 mt-1" />
+          </div>
+          <div className="flex gap-2 ml-4">
+            <Skeleton className="h-8 w-10" />
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-16" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 
 export default function BookingHistory() {
   const { user } = useAuth()
   const [reservations, setReservations] = useState([])
+  const [loading, setLoading] = useState(true)
   const [qrData, setQrData] = useState({})
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [navigatingId, setNavigatingId] = useState(null)
 
   useEffect(() => {
-    reservationService.getByUser(user.id).then(setReservations)
+    reservationService.getByUser(user.id)
+      .then(setReservations)
+      .catch(() => toast.error('Failed to load bookings'))
+      .finally(() => setLoading(false))
   }, [user.id])
 
-  const showQr = async (id) => {
-    if (qrData[id]) { setQrData(p => ({ ...p, [id]: null })); return }
-    const data = await reservationService.getQrCode(id)
-    setQrData(p => ({ ...p, [id]: data.qrCode }))
+  const toggleQr = async (id) => {
+    if (qrData[id]) {
+      setQrData(p => ({ ...p, [id]: null }))
+      return
+    }
+    try {
+      const data = await reservationService.getQrCode(id)
+      setQrData(p => ({ ...p, [id]: data.qrCode }))
+    } catch {
+      toast.error('Could not load QR code')
+    }
   }
 
-  const cancel = async (id) => {
-    await reservationService.cancel(id)
-    setReservations(r => r.map(x => x.id === id ? { ...x, status: 'Cancelled' } : x))
+  const handleNavigate = async (r) => {
+    const destination = formatDestination(r.locationName, r.locationAddress, r.locationCity)
+    setNavigatingId(r.id)
+    try {
+      const pos = await getFreshGPS()
+      const origin = `${pos.coords.latitude},${pos.coords.longitude}`
+      window.open(buildMapsUrl(destination, origin), '_blank', 'noopener,noreferrer')
+    } catch {
+      window.open(buildMapsUrl(destination, null), '_blank', 'noopener,noreferrer')
+    } finally {
+      setNavigatingId(null)
+    }
+  }
+
+  const handleCancelConfirm = async () => {
+    if (!cancelTarget) return
+    try {
+      await reservationService.cancel(cancelTarget)
+      setReservations(r =>
+        r.map(x => x.id === cancelTarget ? { ...x, status: 'Cancelled' } : x)
+      )
+      toast.success('Booking cancelled successfully')
+    } catch {
+      toast.error('Failed to cancel booking')
+    } finally {
+      setCancelTarget(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Your parking reservation history</h2>
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <BookingCardSkeleton key={i} />)}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div style={page}>
-      <h2 style={{ color: '#1a73e8', marginBottom: '24px' }}>My Bookings</h2>
-      {reservations.length === 0 && <p style={{ color: '#888' }}>No bookings yet.</p>}
-      {reservations.map(r => (
-        <div key={r.id} style={card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <p><strong>Slot:</strong> {r.slotNumber} — {r.locationName}</p>
-              <p style={{ color: '#666', fontSize: '0.9rem' }}>{new Date(r.startTime).toLocaleString()} → {new Date(r.endTime).toLocaleString()}</p>
-              <span style={{ ...badge, background: r.status === 'Confirmed' ? '#e6f4ea' : r.status === 'Cancelled' ? '#fce8e6' : '#fff8e1', color: r.status === 'Confirmed' ? '#34a853' : r.status === 'Cancelled' ? '#d93025' : '#f9ab00' }}>{r.status}</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {r.status !== 'Cancelled' && (
-                <>
-                  <button style={qrBtn} onClick={() => showQr(r.id)}>QR</button>
-                  <button
-                    style={navBtn}
-                    onClick={() => {
-                      const destination = encodeURIComponent([r.locationName, r.locationAddress, r.locationCity].filter(Boolean).join(', '))
-                      const open = (origin) => {
-                        const url = `https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ''}&destination=${destination}&travelmode=driving`
-                        window.open(url, '_blank', 'noopener,noreferrer')
-                      }
-                      if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                          pos => open(`${pos.coords.latitude},${pos.coords.longitude}`),
-                          ()  => open(null)
-                        )
-                      } else { open(null) }
-                    }}
-                  >🗺️ Navigate</button>
-                  <button style={cancelBtn} onClick={() => cancel(r.id)}>Cancel</button>
-                </>
-              )}
-            </div>
-          </div>
-          {qrData[r.id] && <QRCodeDisplay base64={qrData[r.id]} />}
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">My Bookings</h2>
+        <p className="text-muted-foreground mt-1">Your parking reservation history</p>
+      </div>
+
+      {reservations.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="No bookings yet"
+          description="Reserve a parking spot to get started"
+        />
+      ) : (
+        <div className="space-y-3">
+          {reservations.map(r => (
+            <Card key={r.id}>
+              <CardContent className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm">
+                      Slot {r.slotNumber}
+                      {r.locationName && (
+                        <span className="font-normal text-muted-foreground"> — {r.locationName}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(r.startTime).toLocaleString()} → {new Date(r.endTime).toLocaleString()}
+                    </p>
+                    <Badge
+                      variant={STATUS_VARIANT[r.status] || 'secondary'}
+                      className="mt-1.5 text-xs"
+                    >
+                      {r.status}
+                    </Badge>
+                  </div>
+
+                  {/* Actions */}
+                  {r.status !== 'Cancelled' && (
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => toggleQr(r.id)}
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        {qrData[r.id] ? 'Hide QR' : 'QR'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => handleNavigate(r)}
+                        disabled={navigatingId === r.id}
+                      >
+                        {navigatingId === r.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Navigation className="h-3.5 w-3.5" />}
+                        {navigatingId === r.id ? 'Locating…' : 'Navigate'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => setCancelTarget(r.id)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* QR code (toggle) */}
+                {qrData[r.id] && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <QRCodeDisplay base64={qrData[r.id]} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      ))}
+      )}
+
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        title="Cancel Booking"
+        description="Are you sure you want to cancel this booking? If you already paid, your refund will be processed within 3–5 business days."
+        confirmLabel="Cancel Booking"
+        variant="destructive"
+        onConfirm={handleCancelConfirm}
+      />
     </div>
   )
 }
-
-const page      = { padding: '32px 24px', maxWidth: '800px', margin: '0 auto' }
-const card      = { background: '#fff', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '16px' }
-const badge     = { display: 'inline-block', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', marginTop: '6px' }
-const qrBtn     = { padding: '6px 14px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }
-const navBtn    = { padding: '6px 14px', background: '#34a853', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500', cursor: 'pointer' }
-const cancelBtn = { padding: '6px 14px', background: '#d93025', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }
