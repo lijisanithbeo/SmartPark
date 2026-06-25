@@ -39,6 +39,11 @@ public class PasswordResetService : IPasswordResetService
         var rawToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLower();
         var hashedToken = HashToken(rawToken);
 
+        var resetUrl = $"{_appOptions.FrontendBaseUrl}/reset-password?token={rawToken}";
+
+        // Send email first — if this throws, no token is written to the DB
+        await _emailService.SendPasswordResetEmailAsync(user.Email, resetUrl);
+
         _context.PasswordResetTokens.Add(new PasswordResetToken
         {
             UserId = user.ID,
@@ -48,9 +53,6 @@ public class PasswordResetService : IPasswordResetService
         });
 
         await _context.SaveChangesAsync();
-
-        var resetUrl = $"{_appOptions.FrontendBaseUrl}/reset-password?token={rawToken}";
-        await _emailService.SendPasswordResetEmailAsync(user.Email, resetUrl);
     }
 
     public async Task<bool> ResetPasswordAsync(string token, string newPassword)
