@@ -13,6 +13,8 @@ public class SmartParkDbContext : DbContext
     public DbSet<ParkingSlot> ParkingSlots => Set<ParkingSlot>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PricingConfig> PricingConfigs => Set<PricingConfig>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +23,7 @@ public class SmartParkDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ParkingSlotConfiguration());
         modelBuilder.ApplyConfiguration(new ReservationConfiguration());
         modelBuilder.ApplyConfiguration(new PaymentConfiguration());
+        modelBuilder.ApplyConfiguration(new PricingConfigConfiguration());
+        modelBuilder.ApplyConfiguration(new PasswordResetTokenConfiguration());
     }
 }

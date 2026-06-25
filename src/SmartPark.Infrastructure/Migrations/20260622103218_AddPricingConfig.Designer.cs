@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartPark.Infrastructure.Data;
@@ -11,9 +12,11 @@ using SmartPark.Infrastructure.Data;
 namespace SmartPark.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartParkDbContext))]
-    partial class SmartParkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260622103218_AddPricingConfig")]
+    partial class AddPricingConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,42 +115,6 @@ namespace SmartPark.Infrastructure.Migrations
                     b.ToTable("ParkingSlots", (string)null);
                 });
 
-            modelBuilder.Entity("SmartPark.Domain.Entities.PasswordResetToken", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("HashedToken")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HashedToken");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PasswordResetTokens");
-                });
-
             modelBuilder.Entity("SmartPark.Domain.Entities.Payment", b =>
                 {
                     b.Property<int>("ID")
@@ -184,8 +151,6 @@ namespace SmartPark.Infrastructure.Migrations
 
                     b.HasIndex("ReservationID")
                         .IsUnique();
-
-                    b.HasIndex("PaymentStatus", "PaymentDate");
 
                     b.ToTable("Payments", (string)null);
                 });
@@ -272,11 +237,9 @@ namespace SmartPark.Infrastructure.Migrations
 
                     b.HasKey("ID");
 
-                    b.HasIndex("ReservationDate");
+                    b.HasIndex("SlotID");
 
                     b.HasIndex("UserID");
-
-                    b.HasIndex("SlotID", "Status");
 
                     b.ToTable("Reservations", (string)null);
                 });
@@ -335,8 +298,6 @@ namespace SmartPark.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("Role");
-
                     b.HasIndex("UserID")
                         .IsUnique();
 
@@ -362,17 +323,6 @@ namespace SmartPark.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Location");
-                });
-
-            modelBuilder.Entity("SmartPark.Domain.Entities.PasswordResetToken", b =>
-                {
-                    b.HasOne("SmartPark.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SmartPark.Domain.Entities.Payment", b =>
