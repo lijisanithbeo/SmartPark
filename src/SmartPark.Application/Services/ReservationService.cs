@@ -60,7 +60,8 @@ public class ReservationService : IReservationService
             location?.Address      ?? string.Empty,
             location?.City         ?? string.Empty,
             reservation.ReservationDate, reservation.StartTime, reservation.EndTime,
-            reservation.Status.ToString(), reservation.IsActive, reservation.VehicleNumber);
+            reservation.Status.ToString(), reservation.IsActive, reservation.VehicleNumber,
+            location?.Latitude, location?.Longitude);
     }
 
     public async Task<ReservationDto> GetByIdAsync(int id)
@@ -151,5 +152,6 @@ public class ReservationService : IReservationService
             slot?.Location?.Address      ?? string.Empty,
             slot?.Location?.City         ?? string.Empty,
             r.ReservationDate, r.StartTime, r.EndTime,
-            r.Status.ToString(), r.IsActive, r.VehicleNumber);
+            r.Status.ToString(), r.IsActive, r.VehicleNumber,
+            slot?.Location?.Latitude, slot?.Location?.Longitude);
 }

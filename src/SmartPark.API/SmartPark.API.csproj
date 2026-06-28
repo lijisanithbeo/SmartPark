@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\SmartPark.Application\SmartPark.Application.csproj" />
@@ -17,6 +17,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>3d1a73ef-31fe-4a5e-8c7d-32056534f6f5</UserSecretsId>
   </PropertyGroup>
 
 </Project>

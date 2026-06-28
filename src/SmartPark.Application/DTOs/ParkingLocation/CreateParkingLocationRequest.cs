@@ -4,4 +4,6 @@ public record CreateParkingLocationRequest(
     string LocationName,
     string Address,
     string City,
-    int TotalSlots);
+    int TotalSlots,
+    double? Latitude = null,
+    double? Longitude = null);

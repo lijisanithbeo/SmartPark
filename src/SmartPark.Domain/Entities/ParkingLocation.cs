@@ -13,6 +13,13 @@ public class ParkingLocation
     public bool IsActive { get; set; }
 
     // Multi-tenant: every location belongs to one Parking Owner (nullable for migration compatibility)
+    // GPS coordinates — nullable so existing rows migrate without breaking.
+    // When set, the frontend uses these directly as the Maps destination
+    // instead of geocoding the text address (more accurate for local parking lots).
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
+    // Multi-tenant: every location belongs to one Parking Owner (nullable for migration compatibility)
     public int? OwnerID { get; set; }
     public User? Owner { get; set; }
 

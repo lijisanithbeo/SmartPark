@@ -6,4 +6,6 @@ public record UpdateParkingLocationRequest(
     string City,
     int TotalSlots,
     bool IsActive,
-    int? OwnerID = null);
+    int? OwnerID = null,
+    double? Latitude = null,
+    double? Longitude = null);

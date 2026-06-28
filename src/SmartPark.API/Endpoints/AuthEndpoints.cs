@@ -23,8 +23,8 @@ public static class AuthEndpoints
 
         group.MapPost("/forgot-password", async (ForgotPasswordRequest request, IPasswordResetService passwordResetService) =>
         {
-            await passwordResetService.SendResetEmailAsync(request.Email);
-            return Results.Ok(new { message = "If that email is registered, a reset link has been sent." });
+            var resetUrl = await passwordResetService.GenerateResetLinkAsync(request.Email);
+            return Results.Ok(new { resetUrl });
         });
 
         group.MapPost("/reset-password", async (ResetPasswordRequest request, IPasswordResetService passwordResetService) =>

@@ -42,8 +42,8 @@ export default function ResetPassword() {
     e.preventDefault()
     setValidationError('')
 
-    if (form.newPassword.length < 8) {
-      setValidationError('Password must be at least 8 characters.')
+    if (form.newPassword.length < 1) {
+      setValidationError('Password cannot be empty.')
       return
     }
     if (form.newPassword !== form.confirmPassword) {
@@ -106,7 +106,7 @@ export default function ResetPassword() {
                 <Input
                   id="newPassword"
                   type="password"
-                  placeholder="At least 8 characters"
+                  placeholder="Enter new password"
                   value={form.newPassword}
                   onChange={e => setForm({ ...form, newPassword: e.target.value })}
                   required

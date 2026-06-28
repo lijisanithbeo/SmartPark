@@ -56,6 +56,9 @@ public class ParkingLocationService : IParkingLocationService
             request.TotalSlots,
             ownerId);
 
+        location.Latitude  = request.Latitude;
+        location.Longitude = request.Longitude;
+
         await _uow.ParkingLocations.AddAsync(location);
         await _uow.SaveChangesAsync();
         return ToDto(location);
@@ -74,6 +77,8 @@ public class ParkingLocationService : IParkingLocationService
         location.City         = request.City.Trim();
         location.TotalSlots   = request.TotalSlots;
         location.IsActive     = request.IsActive;
+        location.Latitude     = request.Latitude;
+        location.Longitude    = request.Longitude;
         if (isAdmin && request.OwnerID.HasValue && request.OwnerID.Value > 0)
             location.OwnerID = request.OwnerID.Value;
 
@@ -106,6 +111,6 @@ public class ParkingLocationService : IParkingLocationService
         var ownerName = l.Owner != null
             ? $"{l.Owner.FirstName} {l.Owner.LastName}".Trim()
             : string.Empty;
-        return new ParkingLocationDto(l.ID, l.LocationName, l.Address, l.City, l.TotalSlots, available, l.IsActive, l.OwnerID ?? 0, ownerName);
+        return new ParkingLocationDto(l.ID, l.LocationName, l.Address, l.City, l.TotalSlots, available, l.IsActive, l.OwnerID ?? 0, ownerName, l.Latitude, l.Longitude);
     }
 }

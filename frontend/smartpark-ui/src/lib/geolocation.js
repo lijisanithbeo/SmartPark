@@ -1,32 +1,27 @@
 import { NOMINATIM_BASE_URL, GOOGLE_MAPS_BASE_URL } from '@/lib/constants'
 
-// Keeps refining position until accuracy < 100 m or 8 seconds elapse
-export function getFreshGPS() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('Geolocation not supported')); return }
-    let best = null
-    let watchId = null
-    const timer = setTimeout(() => {
-      navigator.geolocation.clearWatch(watchId)
-      if (best) resolve(best)
-      else reject(new Error('GPS timeout'))
-    }, 8000)
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        best = pos
-        if (pos.coords.accuracy <= 100) {
-          clearTimeout(timer)
-          navigator.geolocation.clearWatch(watchId)
-          resolve(pos)
-        }
-      },
-      (err) => { clearTimeout(timer); reject(err) },
-      { maximumAge: 0, enableHighAccuracy: true }
+// Fixed starting location used as the origin for all navigation.
+export const NAV_ORIGIN = 'BEO Software, Palrivattom'
+
+// Forward-geocodes a parking location to lat/lng using Nominatim.
+// Called silently when owner saves a location — result is stored in the DB.
+// Returns { lat, lng } or null if Nominatim cannot find the address.
+export async function geocodeAddress(locationName, address, city) {
+  const query = [locationName, address, city, 'India'].filter(Boolean).join(', ')
+  try {
+    const res = await fetch(
+      `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'en' } }
     )
-  })
+    const data = await res.json()
+    if (data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+    }
+  } catch { /* ignore — coordinates are optional */ }
+  return null
 }
 
-// Converts GPS coordinates to a human-readable address
+// Converts GPS coordinates to a human-readable address via Nominatim (OSM).
 export async function reverseGeocode(lat, lng) {
   try {
     const res = await fetch(
@@ -40,17 +35,35 @@ export async function reverseGeocode(lat, lng) {
   }
 }
 
-// Formats a parking location into a single destination string
+// Formats a parking location into a single destination string.
 export function formatDestination(locationName, address, city) {
   return [locationName, address, city, 'India'].filter(Boolean).join(', ')
 }
 
-// Builds a Google Maps directions (or search) URL
-export function buildMapsUrl(destination, origin) {
-  const dest = encodeURIComponent(destination)
+// Returns true if the string looks like a "lat,lng" coordinate pair.
+function isCoordinateString(s) {
+  return /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s.trim())
+}
+
+// Builds a Google Maps directions URL.
+//
+// destLat/destLng: stored GPS coordinates for the parking location (preferred — precise).
+// destination:     text fallback when coordinates are not yet stored.
+// origin:          optional "lat,lng" string; omit to let Google Maps use the
+//                  device's own live GPS as starting point (recommended for drivers).
+export function buildMapsUrl(destination, origin, destLat, destLng) {
+  const dest = (destLat != null && destLng != null)
+    ? `${destLat},${destLng}`
+    : encodeURIComponent(destination)
+
   if (origin) {
-    const orig = encodeURIComponent(origin)
+    const orig = isCoordinateString(origin)
+      ? origin.trim()
+      : encodeURIComponent(origin)
     return `${GOOGLE_MAPS_BASE_URL}/dir/?api=1&origin=${orig}&destination=${dest}&travelmode=driving`
   }
-  return `${GOOGLE_MAPS_BASE_URL}/search/?api=1&query=${dest}`
+
+  // No origin — Google Maps will use the device's live GPS automatically.
+  // This is more reliable than browser geolocation and works instantly on mobile.
+  return `${GOOGLE_MAPS_BASE_URL}/dir/?api=1&destination=${dest}&travelmode=driving`
 }

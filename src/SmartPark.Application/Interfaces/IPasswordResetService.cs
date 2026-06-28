@@ -2,6 +2,6 @@ namespace SmartPark.Application.Interfaces;
 
 public interface IPasswordResetService
 {
-    Task SendResetEmailAsync(string email);
+    Task<string?> GenerateResetLinkAsync(string email);
     Task<bool> ResetPasswordAsync(string token, string newPassword);
 }

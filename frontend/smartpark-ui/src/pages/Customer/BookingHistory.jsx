@@ -9,8 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { BookOpen, QrCode, Navigation, X, Loader2 } from 'lucide-react'
-import { getFreshGPS, formatDestination, buildMapsUrl } from '@/lib/geolocation'
+import { BookOpen, QrCode, Navigation, X } from 'lucide-react'
+import { NAV_ORIGIN, formatDestination, buildMapsUrl } from '@/lib/geolocation'
 
 const STATUS_VARIANT = {
   Confirmed: 'default',
@@ -46,8 +46,6 @@ export default function BookingHistory() {
   const [loading, setLoading] = useState(true)
   const [qrData, setQrData] = useState({})
   const [cancelTarget, setCancelTarget] = useState(null)
-  const [navigatingId, setNavigatingId] = useState(null)
-
   useEffect(() => {
     reservationService.getByUser(user.id)
       .then(setReservations)
@@ -68,18 +66,9 @@ export default function BookingHistory() {
     }
   }
 
-  const handleNavigate = async (r) => {
+  const handleNavigate = (r) => {
     const destination = formatDestination(r.locationName, r.locationAddress, r.locationCity)
-    setNavigatingId(r.id)
-    try {
-      const pos = await getFreshGPS()
-      const origin = `${pos.coords.latitude},${pos.coords.longitude}`
-      window.open(buildMapsUrl(destination, origin), '_blank', 'noopener,noreferrer')
-    } catch {
-      window.open(buildMapsUrl(destination, null), '_blank', 'noopener,noreferrer')
-    } finally {
-      setNavigatingId(null)
-    }
+    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, r.latitude, r.longitude)
   }
 
   const handleCancelConfirm = async () => {
@@ -165,12 +154,9 @@ export default function BookingHistory() {
                         size="sm"
                         className="gap-1.5"
                         onClick={() => handleNavigate(r)}
-                        disabled={navigatingId === r.id}
                       >
-                        {navigatingId === r.id
-                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          : <Navigation className="h-3.5 w-3.5" />}
-                        {navigatingId === r.id ? 'Locating…' : 'Navigate'}
+                        <Navigation className="h-3.5 w-3.5" />
+                        Navigate
                       </Button>
                       <Button
                         variant="outline"

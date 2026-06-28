@@ -1,21 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Search, MapPin, Navigation, X, LocateFixed, Loader2 } from 'lucide-react'
+import { Search, MapPin, Navigation, X } from 'lucide-react'
 import parkingService from '@/services/parkingService'
 import { NOMINATIM_BASE_URL } from '@/lib/constants'
-import { getFreshGPS, reverseGeocode, formatDestination, buildMapsUrl } from '@/lib/geolocation'
+import { NAV_ORIGIN, formatDestination, buildMapsUrl } from '@/lib/geolocation'
 import ParkingMap from '@/components/Map/ParkingMap'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog'
 
 async function geocodeCity(city) {
   try {
@@ -28,7 +24,6 @@ async function geocodeCity(city) {
   } catch { /* ignore */ }
   return null
 }
-
 
 function LocationCardSkeleton() {
   return (
@@ -60,12 +55,6 @@ export default function Home() {
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
-
-  // Navigate dialog state
-  const [navDialog, setNavDialog] = useState(null)   // the target parking location
-  const [currentLoc, setCurrentLoc] = useState('')   // editable current location text
-  const [detectingGPS, setDetectingGPS] = useState(false)
-  const [gpsCoords, setGpsCoords] = useState(null)   // { lat, lng } of detected position
 
   useEffect(() => {
     setLoading(true)
@@ -101,43 +90,9 @@ export default function Home() {
     if (e.key === 'Enter') doSearch()
   }
 
-  // Detect fresh GPS and reverse-geocode to address name
-  const detectLocation = async () => {
-    setDetectingGPS(true)
-    try {
-      const pos = await getFreshGPS()
-      const { latitude, longitude } = pos.coords
-      setGpsCoords({ lat: latitude, lng: longitude })
-      const address = await reverseGeocode(latitude, longitude)
-      setCurrentLoc(address)
-    } catch {
-      setCurrentLoc('')
-      setGpsCoords(null)
-    } finally {
-      setDetectingGPS(false)
-    }
-  }
-
-  // Open the navigate dialog and auto-detect immediately
-  const openNavDialog = (loc) => {
-    setNavDialog(loc)
-    setCurrentLoc('')
-    setGpsCoords(null)
-    detectLocation()
-  }
-
-  // Open Google Maps with the confirmed origin + destination
-  const handleOpenMaps = () => {
-    if (!navDialog) return
-    const destination = formatDestination(navDialog.locationName, navDialog.address, navDialog.city)
-    if (gpsCoords) {
-      window.open(buildMapsUrl(destination, `${gpsCoords.lat},${gpsCoords.lng}`), '_blank')
-    } else if (currentLoc.trim()) {
-      window.open(buildMapsUrl(destination, currentLoc.trim()), '_blank')
-    } else {
-      window.open(buildMapsUrl(destination, null), '_blank')
-    }
-    setNavDialog(null)
+  const handleNavigate = (loc) => {
+    const destination = formatDestination(loc.locationName, loc.address, loc.city)
+    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, loc.latitude, loc.longitude)
   }
 
   return (
@@ -207,7 +162,7 @@ export default function Home() {
             title={searched ? 'No locations found' : 'No parking locations'}
             description={
               searched
-                ? `Try a different city or location name.`
+                ? 'Try a different city or location name.'
                 : 'No parking locations are available right now.'
             }
           />
@@ -240,7 +195,7 @@ export default function Home() {
                         size="sm"
                         variant="outline"
                         className="gap-1"
-                        onClick={() => openNavDialog(loc)}
+                        onClick={() => handleNavigate(loc)}
                       >
                         <Navigation className="h-3.5 w-3.5" />
                         Navigate
@@ -259,81 +214,6 @@ export default function Home() {
           </div>
         )}
       </div>
-
-      {/* Navigate dialog */}
-      <Dialog open={!!navDialog} onOpenChange={(open) => !open && setNavDialog(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Navigation className="h-5 w-5 text-primary" />
-              Navigate to Parking
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Current location */}
-            <div className="space-y-1.5">
-              <Label className="flex items-center justify-between">
-                <span>Your Current Location</span>
-                <button
-                  onClick={detectLocation}
-                  disabled={detectingGPS}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"
-                >
-                  {detectingGPS
-                    ? <><Loader2 className="h-3 w-3 animate-spin" /> Detecting…</>
-                    : <><LocateFixed className="h-3 w-3" /> Detect again</>
-                  }
-                </button>
-              </Label>
-              <div className="relative">
-                <Input
-                  placeholder={detectingGPS ? 'Detecting your location…' : 'Your current location'}
-                  value={currentLoc}
-                  onChange={e => { setCurrentLoc(e.target.value); setGpsCoords(null) }}
-                  disabled={detectingGPS}
-                />
-                {detectingGPS && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {detectingGPS
-                  ? 'Getting your live location…'
-                  : 'Auto-detected. Edit if incorrect.'}
-              </p>
-            </div>
-
-            {/* Destination */}
-            <div className="space-y-1.5">
-              <Label>Destination</Label>
-              <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
-                <MapPin className="h-4 w-4 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{navDialog?.locationName}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {navDialog?.address}, {navDialog?.city}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setNavDialog(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleOpenMaps}
-              disabled={detectingGPS}
-              className="gap-1.5"
-            >
-              <Navigation className="h-4 w-4" />
-              Open in Google Maps
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

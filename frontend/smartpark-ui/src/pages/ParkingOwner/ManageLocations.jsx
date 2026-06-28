@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, MapPin, Pencil, Trash2 } from 'lucide-react'
 import parkingService from '@/services/parkingService'
+import { geocodeAddress } from '@/lib/geolocation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,9 +39,15 @@ export default function ManageLocations() {
     e.preventDefault()
     setSubmitting(true)
     try {
+      // Silently geocode the address — owner just sees the normal spinner
+      const coords = await geocodeAddress(form.locationName, form.address, form.city)
       const newLoc = await parkingService.createLocation({
-        ...form,
-        totalSlots: parseInt(form.totalSlots),
+        locationName: form.locationName,
+        address:      form.address,
+        city:         form.city,
+        totalSlots:   parseInt(form.totalSlots),
+        latitude:     coords?.lat ?? null,
+        longitude:    coords?.lng ?? null,
       })
       setLocations(l => [...l, newLoc])
       setForm(EMPTY_FORM)
@@ -66,12 +73,16 @@ export default function ManageLocations() {
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Re-geocode whenever address or city changes — keeps coordinates fresh
+      const coords = await geocodeAddress(editForm.locationName, editForm.address, editForm.city)
       const updated = await parkingService.updateLocation(editTarget.id, {
         locationName: editForm.locationName,
         address:      editForm.address,
         city:         editForm.city,
         totalSlots:   parseInt(editForm.totalSlots),
         isActive:     editForm.isActive,
+        latitude:     coords?.lat ?? null,
+        longitude:    coords?.lng ?? null,
       })
       setLocations(l => l.map(x => x.id === updated.id ? updated : x))
       toast.success('Location updated successfully')
@@ -282,7 +293,9 @@ export default function ManageLocations() {
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Changes'}
+              {saving ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
+              ) : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

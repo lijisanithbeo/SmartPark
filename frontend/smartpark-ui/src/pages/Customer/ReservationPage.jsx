@@ -17,29 +17,18 @@ import {
   Smartphone, Banknote, TrendingUp, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getFreshGPS, formatDestination, buildMapsUrl } from '@/lib/geolocation'
+import { NAV_ORIGIN, formatDestination, buildMapsUrl } from '@/lib/geolocation'
 
 // ── NavigateBtn ──────────────────────────────────────────────────────────────
-function NavigateBtn({ locationName, address, city }) {
-  const [loading, setLoading] = useState(false)
-  const handleClick = async () => {
+function NavigateBtn({ locationName, address, city, latitude, longitude }) {
+  const handleClick = () => {
     const destination = formatDestination(locationName, address, city)
-    setLoading(true)
-    try {
-      const pos = await getFreshGPS()
-      const origin = `${pos.coords.latitude},${pos.coords.longitude}`
-      window.open(buildMapsUrl(destination, origin), '_blank', 'noopener,noreferrer')
-    } catch {
-      // GPS unavailable or denied — open Maps with destination only
-      window.open(buildMapsUrl(destination, null), '_blank', 'noopener,noreferrer')
-    } finally {
-      setLoading(false)
-    }
+    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, latitude, longitude)
   }
   return (
-    <Button variant="default" className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={handleClick} disabled={loading}>
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-      {loading ? 'Getting location…' : 'Get Directions'}
+    <Button variant="default" className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={handleClick}>
+      <Navigation className="h-4 w-4" />
+      Get Directions
     </Button>
   )
 }
@@ -312,8 +301,8 @@ export default function ReservationPage() {
                 <p className="font-semibold text-sm">{reservation.locationName}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{reservation.locationAddress}, {reservation.locationCity}</p>
               </div>
-              <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
-              <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
+              <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} latitude={reservation.latitude} longitude={reservation.longitude} />
+              <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} latitude={reservation.latitude} longitude={reservation.longitude} />
             </div>
           )}
           <div className="space-y-2">
@@ -346,8 +335,8 @@ export default function ReservationPage() {
                 <p className="font-semibold text-sm">{reservation.locationName}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{reservation.locationAddress}, {reservation.locationCity}</p>
               </div>
-              <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
-              <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} />
+              <MiniMap locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} latitude={reservation.latitude} longitude={reservation.longitude} />
+              <NavigateBtn locationName={reservation.locationName || slot?.locationName} address={reservation.locationAddress} city={reservation.locationCity} latitude={reservation.latitude} longitude={reservation.longitude} />
             </div>
           )}
           <div className="rounded-lg bg-muted p-4 text-left space-y-1">

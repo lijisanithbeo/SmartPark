@@ -13,4 +13,6 @@ public record ReservationDto(
     DateTime EndTime,
     string Status,
     bool IsActive,
-    string? VehicleNumber = null);
+    string? VehicleNumber = null,
+    double? Latitude = null,
+    double? Longitude = null);

@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import iconUrl       from 'leaflet/dist/images/marker-icon.png'
+import iconUrl from 'leaflet/dist/images/marker-icon.png'
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
-import shadowUrl     from 'leaflet/dist/images/marker-shadow.png'
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
 
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })
@@ -15,9 +15,10 @@ const parkingIcon = new L.Icon({
       <circle cx="18" cy="18" r="17" fill="#1a73e8" stroke="#fff" stroke-width="2"/>
       <text x="18" y="24" text-anchor="middle" fill="white" font-size="18" font-weight="bold" font-family="Arial">P</text>
     </svg>`),
-  iconSize:   [36, 36],
+
+  iconSize: [36, 36],
   iconAnchor: [18, 36],
-  popupAnchor:[0, -36],
+  popupAnchor: [0, -36],
 })
 
 async function geocode(query) {
@@ -32,23 +33,31 @@ async function geocode(query) {
   return null
 }
 
-export default function MiniMap({ locationName, address, city }) {
+// latitude/longitude: GPS coordinates stored in the database (precise).
+// Falls back to Nominatim geocoding of the text address when not available.
+export default function MiniMap({ locationName, address, city, latitude, longitude }) {
   const [center, setCenter] = useState(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
+    // Prefer stored GPS coordinates — instant, no network call, accurate
+    if (latitude != null && longitude != null) {
+      setCenter([latitude, longitude])
+      return
+    }
+    // Fall back to Nominatim geocoding for locations without saved coordinates
     const query = [locationName, address, city].filter(Boolean).join(', ')
     geocode(query).then(coords => {
       if (coords) setCenter(coords)
       else setFailed(true)
     })
-  }, [locationName, address, city])
+  }, [latitude, longitude, locationName, address, city])
 
   if (failed) return null
 
   if (!center) return (
     <div style={placeholder}>
-      <span style={{ animation: 'pulse 1.5s infinite' }}>📍</span> Loading map…
+      <span>📍</span> Loading map…
     </div>
   )
 
@@ -85,5 +94,6 @@ const placeholder = {
   justifyContent: 'center',
   color: '#888',
   fontSize: '0.9rem',
+  gap: '6px',
   margin: '12px 0',
 }

@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import iconUrl from 'leaflet/dist/images/marker-icon.png'
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
+import { NAV_ORIGIN, buildMapsUrl } from '@/lib/geolocation'
 
 // Fix Vite asset-hashing breaking Leaflet's default icon lookup
 delete L.Icon.Default.prototype._getIconUrl
@@ -27,62 +28,28 @@ async function geocode(query) {
   return null
 }
 
-// Always fetches FRESH GPS — maximumAge: 0 means never use cached position
-function getFreshLocation() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => reject(err),
-      { maximumAge: 0, timeout: 10000, enableHighAccuracy: true }
-    )
-  })
-}
-
 function NavigateButton({ loc }) {
-  const [loading, setLoading] = useState(false)
-  const destination = encodeURIComponent(`${loc.locationName}, ${loc.address}, ${loc.city}, India`)
-
-  const handleNavigate = async () => {
-    setLoading(true)
-    try {
-      const { lat, lng } = await getFreshLocation()
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${destination}&travelmode=driving`,
-        '_blank'
-      )
-    } catch {
-      // GPS denied or failed — open Maps with destination only, user sets origin manually
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${destination}`,
-        '_blank'
-      )
-    } finally {
-      setLoading(false)
-    }
+  const destination = `${loc.locationName}, ${loc.address}, ${loc.city}, India`
+  const handleNavigate = () => {
+    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, loc.latitude, loc.longitude)
   }
-
   return (
     <button
       onClick={handleNavigate}
-      disabled={loading}
       style={{
-        background: loading ? '#888' : '#34a853',
+        background: '#34a853',
         color: '#fff',
         border: 'none',
         borderRadius: '6px',
         padding: '7px 16px',
-        cursor: loading ? 'not-allowed' : 'pointer',
+        cursor: 'pointer',
         fontSize: '0.85rem',
         fontWeight: '600',
         width: '100%',
         marginTop: '6px',
       }}
     >
-      {loading ? 'Getting location…' : '🧭 Navigate'}
+      Navigate
     </button>
   )
 }
