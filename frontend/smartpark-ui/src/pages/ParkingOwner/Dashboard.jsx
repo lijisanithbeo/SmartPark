@@ -135,7 +135,7 @@ export default function OwnerDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Manage your parking infrastructure</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Your Parking Overview</h2>
       </div>
 
       {/* KPI Cards */}

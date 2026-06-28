@@ -29,6 +29,34 @@ All 12 test accounts (admin + owners + customers) use password **`a`** (minimum 
 
 ---
 
+## Page Title Convention (updated 2026-06-28)
+
+**Rule:** The TopBar (`AppLayout.jsx`) is the single source of the page title — no page component renders its own `<h2>` title. Every page only shows a subtitle/description line below the TopBar.
+
+### ROUTE_TITLES map (`AppLayout.jsx`)
+
+| Route | TopBar title |
+|---|---|
+| `/admin` | Dashboard |
+| `/admin/users` | Manage Users |
+| `/admin/owners` | Manage Owners |
+| `/admin/analytics` | Analytics |
+| `/owner` | Dashboard |
+| `/owner/locations` | Locations |
+| `/owner/slots` | Parking Slots |
+| `/owner/reservations` | Reservations |
+| `/owner/pricing` | Pricing Configuration |
+| `/` | Find Parking |
+| `/search` (no locationId) | Find a Location |
+| `/search?locationId=X` | Select a Slot |
+| `/reserve/:slotId` | Reserve a Slot |
+| `/bookings` | My Bookings |
+| `/profile` | My Profile |
+
+Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx` — checks `/reserve/` prefix and `locationId` query param for the two `/search` views.
+
+---
+
 ## Customer Pages
 
 ### Home (`/`) — Discovery + Browse
@@ -40,13 +68,24 @@ All 12 test accounts (admin + owners + customers) use password **`a`** (minimum 
   - **Navigate** → opens Google Maps in same tab (see Navigation section below)
   - **Reserve** → navigates to `/search?locationId=X`
 
-### Reservation Page (`/search?locationId=X`) — Booking Workflow
+### Find a Location (`/search`) — Location List
 
+- TopBar title: **Find a Location**
+- Lists all parking locations filtered by search query
+
+### Select a Slot (`/search?locationId=X`) — Booking Workflow
+
+- TopBar title: **Select a Slot**
 - MiniMap (Leaflet) shows exact parking location using stored GPS coordinates from DB
 - Live slot grid — green (available), red (occupied), blue (selected) — updates via SignalR in real time
 - Time picker (15-minute intervals), duration calculation, pricing panel
 - Peak hour pricing: SignalR `PeakHourChanged` event switches rate automatically when occupancy > 70%
 - On confirmation: reservation created in PostgreSQL, QR code generated and displayed
+
+### Reserve a Slot (`/reserve/:slotId`)
+
+- TopBar title: **Reserve a Slot**
+- Reservation confirmation form with Navigate button
 
 ### Booking History (`/bookings`)
 
@@ -54,6 +93,37 @@ All 12 test accounts (admin + owners + customers) use password **`a`** (minimum 
 - **QR toggle** — fetches and shows QR code on demand (Base64 PNG)
 - **Navigate** — same Google Maps flow as Home
 - **Cancel** — shadcn ConfirmDialog → cancels reservation, SignalR frees the slot
+
+### My Profile (`/profile`)
+
+- View and edit first name, last name, email, phone number
+- TopBar title: **My Profile**
+
+---
+
+## Owner Pages
+
+### Dashboard (`/owner`) — Overview
+
+- TopBar title: **Dashboard**
+- Page subtitle: **"Your Parking Overview"** (changed from "Manage your parking infrastructure" on 2026-06-28)
+- Stats cards: Total Locations, Total Slots, Available Slots, Active Reservations, Today's Revenue, Monthly Revenue, Total Revenue
+- Quick Actions: My Locations, My Slots, Reservations
+
+### Locations (`/owner/locations`)
+- Add, edit, delete parking locations
+- Geocoding happens automatically via Nominatim on save
+
+### Slots (`/owner/slots`)
+- Add and monitor parking slots per location
+
+### Reservations (`/owner/reservations`)
+- View all customer reservations across owner's locations
+- TopBar title: **Reservations**
+
+### Pricing (`/owner/pricing`)
+- Set base rate and peak hour pricing per location
+- TopBar title: **Pricing Configuration**
 
 ---
 
@@ -147,11 +217,16 @@ When a parking owner saves a new or updated location:
 ### Frontend
 | What | Path |
 |---|---|
+| App layout + TopBar titles | `frontend/smartpark-ui/src/components/Layout/AppLayout.jsx` |
 | Geolocation utils + NAV_ORIGIN | `frontend/smartpark-ui/src/lib/geolocation.js` |
 | Home (customer) | `frontend/smartpark-ui/src/pages/Customer/Home.jsx` |
 | Reservation page | `frontend/smartpark-ui/src/pages/Customer/ReservationPage.jsx` |
 | Booking history | `frontend/smartpark-ui/src/pages/Customer/BookingHistory.jsx` |
+| Profile page | `frontend/smartpark-ui/src/pages/Profile.jsx` |
+| Owner dashboard | `frontend/smartpark-ui/src/pages/ParkingOwner/Dashboard.jsx` |
 | Manage locations (owner) | `frontend/smartpark-ui/src/pages/ParkingOwner/ManageLocations.jsx` |
+| Owner reservations | `frontend/smartpark-ui/src/pages/ParkingOwner/OwnerReservations.jsx` |
+| Owner pricing config | `frontend/smartpark-ui/src/pages/ParkingOwner/OwnerPricingConfig.jsx` |
 | Parking map (Leaflet) | `frontend/smartpark-ui/src/components/Map/ParkingMap.jsx` |
 | MiniMap (Leaflet) | `frontend/smartpark-ui/src/components/Map/MiniMap.jsx` |
 | Forgot password | `frontend/smartpark-ui/src/pages/Auth/ForgotPassword.jsx` |

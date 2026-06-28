@@ -80,10 +80,7 @@ export default function Profile() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">My Profile</h2>
-        <p className="text-muted-foreground mt-1">View and manage your account details</p>
-      </div>
+      <p className="text-muted-foreground">View and manage your account details</p>
 
       <Card>
         <CardHeader className="pb-4">

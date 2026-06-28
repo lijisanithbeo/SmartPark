@@ -101,10 +101,7 @@ export default function BookingHistory() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">My Bookings</h2>
-        <p className="text-muted-foreground mt-1">Your parking reservation history</p>
-      </div>
+      <p className="text-muted-foreground">Your parking reservation history</p>
 
       {reservations.length === 0 ? (
         <EmptyState

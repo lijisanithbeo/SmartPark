@@ -155,10 +155,7 @@ export default function OwnerPricingConfig() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Pricing Configuration</h2>
-        <p className="text-muted-foreground mt-1">Set base rates and peak pricing for your locations</p>
-      </div>
+      <p className="text-muted-foreground">Set base rates and peak pricing for your locations</p>
 
       {/* Location selector */}
       <Card>

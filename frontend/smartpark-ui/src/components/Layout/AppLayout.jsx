@@ -11,10 +11,23 @@ const ROUTE_TITLES = {
   '/admin/analytics':  'Analytics',
   '/owner':            'Dashboard',
   '/owner/locations':  'Locations',
-  '/owner/slots':      'Parking Slots',
+  '/owner/slots':         'Parking Slots',
+  '/owner/reservations':  'Reservations',
+  '/owner/pricing':       'Pricing Configuration',
   '/':                 'Find Parking',
   '/search':           'Search Parking',
   '/bookings':         'My Bookings',
+  '/profile':          'My Profile',
+}
+
+// Dynamic route title helper — differentiates by pathname and query params
+function getRouteTitle(pathname, search) {
+  if (pathname.startsWith('/reserve/')) return 'Reserve a Slot'
+  if (pathname === '/search') {
+    const params = new URLSearchParams(search)
+    return params.get('locationId') ? 'Select a Slot' : 'Find a Location'
+  }
+  return ROUTE_TITLES[pathname] || 'SmartPark'
 }
 
 export default function AppLayout() {
@@ -23,7 +36,7 @@ export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
-  const title = ROUTE_TITLES[location.pathname] || 'SmartPark'
+  const title = getRouteTitle(location.pathname, location.search)
   const role = user?.role || 'Customer'
 
   const toggleDesktopSidebar = () => setSidebarCollapsed(c => !c)

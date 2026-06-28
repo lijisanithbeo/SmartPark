@@ -93,10 +93,7 @@ export default function OwnerReservations() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Reservations</h2>
-        <p className="text-muted-foreground mt-1">All customer reservations at your locations</p>
-      </div>
+      <p className="text-muted-foreground">All customer reservations at your locations</p>
 
       <DataTable
         columns={columns}
