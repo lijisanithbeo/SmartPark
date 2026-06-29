@@ -38,7 +38,7 @@ public class ReservationRepository : BaseRepository<Reservation>, IReservationRe
     // Cancelled reservations never block. Pending reservations expire after 15 min (abandoned unpaid bookings).
     public async Task<bool> IsSlotAvailableAsync(int slotId, DateTime startTime, DateTime endTime)
     {
-        var pendingExpiry = DateTime.UtcNow.AddMinutes(-15);
+        var pendingExpiry = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified).AddMinutes(-15);
         return !await _dbSet.AnyAsync(r =>
             r.SlotID == slotId &&
             r.Status != ReservationStatus.Cancelled &&

@@ -15,7 +15,7 @@ public class ParkingSlotRepository : BaseRepository<ParkingSlot>, IParkingSlotRe
 
     public async Task<IEnumerable<ParkingSlot>> GetByLocationIdAsync(int locationId)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         return await _dbSet
             .Include(s => s.Location)
             .Include(s => s.Reservations.Where(r =>
@@ -28,7 +28,7 @@ public class ParkingSlotRepository : BaseRepository<ParkingSlot>, IParkingSlotRe
 
     public async Task<IEnumerable<ParkingSlot>> GetAvailableSlotsByLocationAsync(int locationId)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         return await _dbSet
             .Include(s => s.Location)
             .Include(s => s.Reservations.Where(r =>
@@ -41,7 +41,7 @@ public class ParkingSlotRepository : BaseRepository<ParkingSlot>, IParkingSlotRe
 
     public async Task<int> GetAvailableSlotCountAsync(int locationId)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         return await _dbSet.CountAsync(s =>
             s.LocationID == locationId &&
             s.Status != SlotStatus.Maintenance &&

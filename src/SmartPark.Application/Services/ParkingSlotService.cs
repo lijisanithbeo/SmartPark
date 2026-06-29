@@ -96,7 +96,7 @@ public class ParkingSlotService : IParkingSlotService
         }
         else
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
             var isOccupied = s.Reservations.Any(r =>
                 r.Status != ReservationStatus.Cancelled &&
                 r.StartTime <= now &&

@@ -186,7 +186,7 @@ export default function SearchParking() {
                   <Badge variant={STATUS_BADGE[slot.status] || 'secondary'} className="text-xs">
                     {slot.status}
                   </Badge>
-                  {slot.status === 'Available' && (
+                  {slot.status !== 'Maintenance' && (
                     <Button size="sm" className="w-full mt-2" onClick={() => navigate(`/reserve/${slot.id}`)}>
                       Reserve
                     </Button>

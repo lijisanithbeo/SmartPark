@@ -142,7 +142,7 @@ export default function Home() {
       )}
 
       {/* Map */}
-      <ParkingMap locations={filtered} cityCenter={cityCenter} />
+      <ParkingMap locations={allLocations} cityCenter={cityCenter} />
 
       {/* Location cards */}
       <div>

@@ -22,10 +22,17 @@ async function geocode(query) {
     )
     const data = await res.json()
     if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)]
-  } catch {
-    // geocoding failed — marker just won't appear
-  }
+  } catch { }
   return null
+}
+
+async function geocodeLoc(loc) {
+  // Try specific address first, then name+city, then city alone
+  return (
+    await geocode(`${loc.locationName}, ${loc.address}, ${loc.city}, India`) ||
+    await geocode(`${loc.locationName}, ${loc.city}, India`) ||
+    await geocode(`${loc.city}, India`)
+  )
 }
 
 function NavigateButton({ loc }) {
@@ -68,15 +75,32 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
 
   useEffect(() => {
     let cancelled = false
+
+    // Use stored coordinates immediately — no Nominatim delay
+    const stored = {}
+    const needsGeocoding = []
+    for (const loc of locations) {
+      if (loc.latitude != null && loc.longitude != null) {
+        stored[loc.id] = [loc.latitude, loc.longitude]
+      } else {
+        needsGeocoding.push(loc)
+      }
+    }
+    if (Object.keys(stored).length > 0) {
+      setCoords(prev => ({ ...prev, ...stored }))
+    }
+
+    // Only call Nominatim for locations missing stored coordinates
     ;(async () => {
-      for (const loc of locations) {
-        if (coords[loc.id]) continue
-        const result = await geocode(`${loc.locationName}, ${loc.city}, India`)
+      for (const loc of needsGeocoding) {
+        if (cancelled) return
+        const result = await geocodeLoc(loc)
         if (cancelled) return
         if (result) setCoords(prev => ({ ...prev, [loc.id]: result }))
-        await new Promise(r => setTimeout(r, 350))
+        await new Promise(r => setTimeout(r, 300))
       }
     })()
+
     return () => { cancelled = true }
   }, [locations])
 
