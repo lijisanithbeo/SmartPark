@@ -24,8 +24,14 @@ SmartPark is a full-stack parking management application.
 | ParkingOwner | `/owner` | Manage their own locations, slots, pricing |
 | Customer | `/` (Home) | Search, reserve, view bookings |
 
-### Demo Accounts
-All 12 test accounts (admin + owners + customers) use password **`a`** (minimum password length reduced to 1 for demo).
+### Demo Accounts (Seed Data)
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@smartpark.com` | `Admin@123` |
+| ParkingOwner | `owner@smartpark.com` | `Owner@123` |
+| Customer | `customer@smartpark.com` | `Customer@123` |
+
+Additional test accounts use password **`a`** (minimum password length reduced to 1 for demo).
 
 ---
 
@@ -46,6 +52,7 @@ All 12 test accounts (admin + owners + customers) use password **`a`** (minimum 
 | `/owner/slots` | Parking Slots |
 | `/owner/reservations` | Reservations |
 | `/owner/pricing` | Pricing Configuration |
+| `/owner/gate` | Gate Scanner |
 | `/` | Find Parking |
 | `/search` (no locationId) | Find a Location |
 | `/search?locationId=X` | Select a Slot |
@@ -86,6 +93,9 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 
 - TopBar title: **Reserve a Slot**
 - Reservation confirmation form with Navigate button
+- **Vehicle Number is mandatory** (red `*`) — submit blocked with error if empty
+- PricingCard shown whenever start date/time and end date/time are all selected (not just when duration > 0)
+- End date auto-set to start date if not yet selected; end time auto-advances to start+1h if end ≤ start
 
 ### Booking History (`/bookings`)
 
@@ -124,6 +134,109 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 ### Pricing (`/owner/pricing`)
 - Set base rate and peak hour pricing per location
 - TopBar title: **Pricing Configuration**
+
+### Gate Scanner (`/owner/gate`)
+- TopBar title: **Gate Scanner**
+- Two tabs: **Entry** (green) and **Exit** (red)
+- Operator enters QR code text or plain reservation ID → clicks **Look Up Booking**
+- Entry tab: shows booking details + **Confirm Entry** button (if not yet checked in)
+- Exit tab: shows live overstay preview (15 min grace, ₹20/15 min block), penalty checkbox, **Confirm Exit** button
+- After action: result card with success message + **Scan Next Vehicle** reset button
+- Restricted to ParkingOwner role
+
+### Reservations (`/owner/reservations`) — Overstay columns (updated)
+- Added 3 new columns to the reservations table:
+  - **Overstay** — duration in minutes (e.g. `15 min`) or `—`
+  - **Penalty** — penalty amount (e.g. `₹20`) or `—`
+  - **Penalty Status** — `Collected` (blue badge) / `Unpaid` (red badge) or `—`
+- Normal reservations show `—` in all three columns
+
+---
+
+## Peak Pricing & Demand Level
+
+### PricingConfig Entity
+Each location can have one `PricingConfig` with:
+- `NormalRate` — base hourly rate (₹)
+- `WeekdayPeakEnabled`, `WeekdayPeakStartHour`, `WeekdayPeakEndHour`, `WeekdayPeakRate`
+- `WeekendPeakEnabled`, `WeekendPeakStartHour`, `WeekendPeakEndHour`, `WeekendPeakRate`
+
+**Forum Mall (LocationID=12):** Normal ₹50, Weekday Peak 18:00–23:00 ₹75, Weekend Peak 10:00–22:00 ₹100
+
+### Rate Determination (`PricingService.cs`)
+- `DetermineRate(config, startTime)` — converts UTC startTime to local before comparing peak hours
+- Peak applies if weekday/weekend flag matches the booking day and hour falls in range
+
+### Demand Level (time-based)
+- **High** — booking start time falls within peak hours
+- **Medium** — booking start time is within 2 hours before peak start
+- **Low** — all other times
+- `EstimatePriceAsync` passes booking `startTime` to `CalcDemand` (not current time)
+- `GetDemandAsync` passes `DateTime.Now` to `CalcDemand` (current occupancy-display demand)
+
+---
+
+## QR Gate Check-In / Check-Out System
+
+### Flow
+`Book → Pay → Get QR Code → ENTRY GATE (check-in scan) → EXIT GATE (check-out scan) → slot freed for next booking`
+
+### QR Code Format
+```
+SMARTPARK|RES:{reservationId}|SLOT:{slotId}|{startTime:yyyyMMddHHmm}
+```
+Gate scanner also accepts plain integer reservation ID directly.
+
+### Overstay Billing
+- **Grace period:** 15 minutes after `EndTime`
+- **Penalty:** ₹20 per 15-minute block after grace period
+- **Collection:** At exit gate — attendant shows amount, customer pays cash/UPI, attendant checks "Penalty collected" checkbox before confirming exit
+
+### Reservation Entity — Gate Fields (migration: `AddGateCheckInOut`)
+| Column | Type | Description |
+|---|---|---|
+| `CheckInTime` | `timestamptz?` | Set when entry scan confirmed |
+| `CheckOutTime` | `timestamptz?` | Set when exit scan confirmed |
+| `OverstayMinutes` | `int` | Total overstay minutes (after grace) |
+| `OverstayPenalty` | `decimal` | Total penalty amount in ₹ |
+| `OverstayPaid` | `bool` | Whether penalty was collected at gate |
+
+### Physical Occupancy Check
+A slot is considered **physically occupied** (blocks new bookings) if:
+- `CheckInTime != null` AND `CheckOutTime == null` AND `EndTime <= newBookingStart`
+- Applied in both `IsSlotAvailableAsync` (reservation) and `GetAvailableSlotCountAsync` (display)
+
+### Backend Files
+| What | Path |
+|---|---|
+| Gate DTOs | `src/SmartPark.Application/DTOs/Gate/GateDto.cs` |
+| IGateService interface | `src/SmartPark.Application/Interfaces/IGateService.cs` |
+| GateService implementation | `src/SmartPark.Infrastructure/Services/GateService.cs` |
+| Gate API endpoints | `src/SmartPark.API/Endpoints/GateEndpoints.cs` |
+| Reservation entity (gate fields) | `src/SmartPark.Domain/Entities/Reservation.cs` |
+| EF migration | `src/SmartPark.Infrastructure/Migrations/20260630101038_AddGateCheckInOut.cs` |
+
+**Gate API endpoints** (`/gate`, policy: `AdminOrOwner`):
+- `GET /gate/scan?qr=...` — look up booking by QR/ID
+- `POST /gate/checkin` — `{ qrPayload }` — record entry
+- `POST /gate/checkout` — `{ qrPayload, overstayPaid }` — record exit + calculate penalty
+
+### Frontend Files
+| What | Path |
+|---|---|
+| Gate API client | `frontend/smartpark-ui/src/services/gateService.js` |
+| Gate Scanner page | `frontend/smartpark-ui/src/pages/ParkingOwner/GateScannerPage.jsx` |
+
+---
+
+## AI Chatbot (Owner context)
+
+The chatbot (`ChatService.cs`) fetches live DB data and injects it as a system prompt context for Groq (llama-3.3-70b-versatile).
+
+**ParkingOwner context includes:**
+- Location occupancy, revenue, booking counts (today / this month / all time)
+- Most booked slot
+- **Overstay incidents:** total count, penalty collected (₹), penalty uncollected (₹), last 3 overstay cases (customer, slot, duration, penalty, Collected/Unpaid)
 
 ---
 
@@ -201,23 +314,36 @@ When a parking owner saves a new or updated location:
 | What | Path |
 |---|---|
 | API endpoints entry | `src/SmartPark.API/Endpoints/AuthEndpoints.cs` |
+| Gate endpoints | `src/SmartPark.API/Endpoints/GateEndpoints.cs` |
 | Auth service | `src/SmartPark.Application/Services/AuthService.cs` |
 | Password reset service | `src/SmartPark.Infrastructure/Services/PasswordResetService.cs` |
 | Parking location service | `src/SmartPark.Application/Services/ParkingLocationService.cs` |
 | Reservation service | `src/SmartPark.Application/Services/ReservationService.cs` |
+| Pricing service (peak + demand) | `src/SmartPark.Infrastructure/Services/PricingService.cs` |
+| Gate service | `src/SmartPark.Infrastructure/Services/GateService.cs` |
+| Chat service (AI chatbot) | `src/SmartPark.Infrastructure/Services/ChatService.cs` |
+| Owner service | `src/SmartPark.Application/Services/OwnerService.cs` |
+| Reservation entity (gate fields) | `src/SmartPark.Domain/Entities/Reservation.cs` |
 | ParkingLocation entity | `src/SmartPark.Domain/Entities/ParkingLocation.cs` |
+| IGateService | `src/SmartPark.Application/Interfaces/IGateService.cs` |
+| Gate DTOs | `src/SmartPark.Application/DTOs/Gate/GateDto.cs` |
+| Owner reservation DTO | `src/SmartPark.Application/DTOs/Owner/OwnerReservationDto.cs` |
 | DTOs (location) | `src/SmartPark.Application/DTOs/ParkingLocation/` |
 | DTOs (reservation) | `src/SmartPark.Application/DTOs/Reservation/ReservationDto.cs` |
 | EF migration (lat/lng) | `src/SmartPark.Infrastructure/Migrations/20260626055601_AddLatLngToParkingLocation.cs` |
+| EF migration (gate fields) | `src/SmartPark.Infrastructure/Migrations/20260630101038_AddGateCheckInOut.cs` |
 | DI registrations (Infrastructure) | `src/SmartPark.Infrastructure/DependencyInjection.cs` |
 | DI registrations (Application) | `src/SmartPark.Application/DependencyInjection.cs` |
 | DbContext | `src/SmartPark.Infrastructure/Data/SmartParkDbContext.cs` |
 | App config | `src/SmartPark.API/appsettings.json` |
+| App config (secrets, gitignored) | `src/SmartPark.API/appsettings.Development.json` |
 
 ### Frontend
 | What | Path |
 |---|---|
 | App layout + TopBar titles | `frontend/smartpark-ui/src/components/Layout/AppLayout.jsx` |
+| Sidebar nav items | `frontend/smartpark-ui/src/components/Layout/Sidebar.jsx` |
+| App routes | `frontend/smartpark-ui/src/App.jsx` |
 | Geolocation utils + NAV_ORIGIN | `frontend/smartpark-ui/src/lib/geolocation.js` |
 | Home (customer) | `frontend/smartpark-ui/src/pages/Customer/Home.jsx` |
 | Reservation page | `frontend/smartpark-ui/src/pages/Customer/ReservationPage.jsx` |
@@ -225,15 +351,16 @@ When a parking owner saves a new or updated location:
 | Profile page | `frontend/smartpark-ui/src/pages/Profile.jsx` |
 | Owner dashboard | `frontend/smartpark-ui/src/pages/ParkingOwner/Dashboard.jsx` |
 | Manage locations (owner) | `frontend/smartpark-ui/src/pages/ParkingOwner/ManageLocations.jsx` |
-| Owner reservations | `frontend/smartpark-ui/src/pages/ParkingOwner/OwnerReservations.jsx` |
+| Owner reservations (+ overstay cols) | `frontend/smartpark-ui/src/pages/ParkingOwner/OwnerReservations.jsx` |
 | Owner pricing config | `frontend/smartpark-ui/src/pages/ParkingOwner/OwnerPricingConfig.jsx` |
+| Gate Scanner page | `frontend/smartpark-ui/src/pages/ParkingOwner/GateScannerPage.jsx` |
 | Parking map (Leaflet) | `frontend/smartpark-ui/src/components/Map/ParkingMap.jsx` |
 | MiniMap (Leaflet) | `frontend/smartpark-ui/src/components/Map/MiniMap.jsx` |
 | Forgot password | `frontend/smartpark-ui/src/pages/Auth/ForgotPassword.jsx` |
 | Reset password | `frontend/smartpark-ui/src/pages/Auth/ResetPassword.jsx` |
 | Auth context | `frontend/smartpark-ui/src/context/AuthContext.jsx` |
 | API client + interceptor | `frontend/smartpark-ui/src/services/api.js` |
-| App routes | `frontend/smartpark-ui/src/App.jsx` |
+| Gate API client | `frontend/smartpark-ui/src/services/gateService.js` |
 
 ---
 

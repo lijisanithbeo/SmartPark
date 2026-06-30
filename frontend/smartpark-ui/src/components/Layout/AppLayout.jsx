@@ -15,6 +15,7 @@ const ROUTE_TITLES = {
   '/owner/slots':         'Parking Slots',
   '/owner/reservations':  'Reservations',
   '/owner/pricing':       'Pricing Configuration',
+  '/owner/gate':          'Gate Scanner',
   '/':                 'Find Parking',
   '/search':           'Search Parking',
   '/bookings':         'My Bookings',

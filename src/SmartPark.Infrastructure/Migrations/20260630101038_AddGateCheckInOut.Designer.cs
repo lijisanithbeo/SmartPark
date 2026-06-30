@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartPark.Infrastructure.Data;
@@ -11,9 +12,11 @@ using SmartPark.Infrastructure.Data;
 namespace SmartPark.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartParkDbContext))]
-    partial class SmartParkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630101038_AddGateCheckInOut")]
+    partial class AddGateCheckInOut
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

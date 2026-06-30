@@ -16,6 +16,7 @@ import {
   CalendarCheck,
   IndianRupee,
   Tag,
+  ScanLine,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ const NAV_ITEMS = {
     { icon: ParkingSquare,   label: 'Slots',        to: '/owner/slots' },
     { icon: ClipboardList,   label: 'Reservations', to: '/owner/reservations' },
     { icon: Tag,             label: 'Pricing',      to: '/owner/pricing' },
+    { icon: ScanLine,        label: 'Gate Scanner', to: '/owner/gate' },
   ],
   Customer: [
     { icon: Home,     label: 'Home',        to: '/' },

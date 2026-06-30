@@ -247,8 +247,9 @@ export default function ReservationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!startTime || !endTime) { setError('Please select both start and end times.'); return }
-    if (duration <= 0)          { setError('End time must be after start time.'); return }
+    if (!startTime || !endTime)    { setError('Please select both start and end times.'); return }
+    if (duration <= 0)             { setError('End time must be after start time.'); return }
+    if (!vehicleNumber.trim())     { setError('Vehicle number is required.'); return }
 
     setLoading(true)
     try {
@@ -418,7 +419,7 @@ export default function ReservationPage() {
             {/* Vehicle Number */}
             <div className="space-y-1.5">
               <Label htmlFor="vehicleNumber">
-                Vehicle Number <span className="text-muted-foreground font-normal">(optional)</span>
+                Vehicle Number <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="vehicleNumber"
@@ -426,6 +427,7 @@ export default function ReservationPage() {
                 value={vehicleNumber}
                 onChange={e => setVehicleNumber(e.target.value.toUpperCase())}
                 maxLength={20}
+                required
               />
             </div>
 

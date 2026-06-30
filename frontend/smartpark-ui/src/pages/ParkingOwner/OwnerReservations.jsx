@@ -89,6 +89,35 @@ export default function OwnerReservations() {
         </Badge>
       ),
     },
+    {
+      key: 'overstayMinutes',
+      header: 'Overstay',
+      render: (val) =>
+        val > 0
+          ? <span className="text-sm font-medium text-rose-600">{val} min</span>
+          : <span className="text-xs text-muted-foreground">—</span>,
+    },
+    {
+      key: 'overstayPenalty',
+      header: 'Penalty',
+      render: (val) =>
+        val > 0
+          ? <span className="text-sm font-semibold text-rose-600">{fmtCurrency(val)}</span>
+          : <span className="text-xs text-muted-foreground">—</span>,
+    },
+    {
+      key: 'overstayPaid',
+      header: 'Penalty Status',
+      render: (val, row) => {
+        if (!row.overstayMinutes || row.overstayMinutes === 0)
+          return <span className="text-xs text-muted-foreground">—</span>
+        return (
+          <Badge variant={val ? 'default' : 'destructive'} className="text-xs">
+            {val ? 'Collected' : 'Unpaid'}
+          </Badge>
+        )
+      },
+    },
   ]
 
   return (

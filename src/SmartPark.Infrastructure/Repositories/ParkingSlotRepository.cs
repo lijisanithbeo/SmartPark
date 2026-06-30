@@ -48,7 +48,12 @@ public class ParkingSlotRepository : BaseRepository<ParkingSlot>, IParkingSlotRe
             !s.Reservations.Any(r =>
                 r.Status != ReservationStatus.Cancelled &&
                 r.StartTime <= now &&
-                r.EndTime > now));
+                r.EndTime > now) &&
+            // Exclude physically occupied slots (checked in, not checked out, booking expired)
+            !s.Reservations.Any(r =>
+                r.CheckInTime != null &&
+                r.CheckOutTime == null &&
+                r.EndTime <= now));
     }
 
     public async Task<IEnumerable<ParkingSlot>> GetByOwnerAsync(int ownerId) =>

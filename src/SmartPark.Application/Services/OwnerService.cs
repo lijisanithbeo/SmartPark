@@ -69,6 +69,9 @@ public class OwnerService : IOwnerService
             Status         = r.Status.ToString(),
             Amount         = r.Payment?.Amount ?? 0m,
             PaymentStatus  = r.Payment?.PaymentStatus.ToString() ?? "Pending",
+            OverstayMinutes = r.OverstayMinutes,
+            OverstayPenalty = r.OverstayPenalty,
+            OverstayPaid    = r.OverstayPaid,
         });
     }
 }

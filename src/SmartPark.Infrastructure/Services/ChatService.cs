@@ -180,6 +180,24 @@ public class ChatService : IChatService
                 .OrderByDescending(g => g.Count()).FirstOrDefault();
             if (topSlot != null)
                 sb.AppendLine($"Most booked slot: Slot {topSlot.Key.SlotNum} at {topSlot.Key.Loc} ({topSlot.Count()} bookings)");
+
+            // Overstay data
+            var overstayRes = allRes.Where(r => r.OverstayMinutes > 0).ToList();
+            sb.AppendLine($"\nOverstay incidents (all time): {overstayRes.Count}");
+            if (overstayRes.Any())
+            {
+                var collected   = overstayRes.Where(r => r.OverstayPaid).Sum(r => r.OverstayPenalty);
+                var uncollected = overstayRes.Where(r => !r.OverstayPaid).Sum(r => r.OverstayPenalty);
+                sb.AppendLine($"Overstay penalty collected: ₹{collected:F0}");
+                sb.AppendLine($"Overstay penalty uncollected: ₹{uncollected:F0}");
+                foreach (var r in overstayRes.OrderByDescending(r => r.CheckOutTime).Take(3))
+                {
+                    var cust = $"{r.User?.FirstName} {r.User?.LastName}".Trim();
+                    var slot = r.ParkingSlot?.SlotNumber ?? "?";
+                    var loc  = r.ParkingSlot?.Location?.LocationName ?? "?";
+                    sb.AppendLine($"  - {cust} | Slot {slot} at {loc} | {r.OverstayMinutes} min | ₹{r.OverstayPenalty} | {(r.OverstayPaid ? "Collected" : "Unpaid")}");
+                }
+            }
         }
         else if (role == "Admin")
         {

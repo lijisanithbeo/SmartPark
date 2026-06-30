@@ -18,8 +18,17 @@ public class Reservation
     public ReservationStatus Status { get; set; }
     public string? VehicleNumber { get; set; }
 
+    // Gate check-in / check-out tracking
+    public DateTime? CheckInTime     { get; set; }
+    public DateTime? CheckOutTime    { get; set; }
+    public int       OverstayMinutes { get; set; }
+    public decimal   OverstayPenalty { get; set; }
+    public bool      OverstayPaid    { get; set; }
+
     // Rule 6: Cancelled reservation is not an active booking
-    public bool IsActive => Status != ReservationStatus.Cancelled;
+    public bool IsActive     => Status != ReservationStatus.Cancelled;
+    public bool IsCheckedIn  => CheckInTime.HasValue && !CheckOutTime.HasValue;
+    public bool IsCheckedOut => CheckOutTime.HasValue;
 
     public User User { get; set; } = null!;
     public ParkingSlot ParkingSlot { get; set; } = null!;
@@ -74,5 +83,36 @@ public class Reservation
             throw new DomainException("Only pending reservations can be confirmed.");
 
         Status = ReservationStatus.Confirmed;
+    }
+
+    public void CheckIn(DateTime checkInTime)
+    {
+        if (Status == ReservationStatus.Cancelled)
+            throw new DomainException("Cannot check in a cancelled reservation.");
+        if (CheckInTime.HasValue)
+            throw new DomainException("Vehicle has already checked in.");
+
+        CheckInTime = checkInTime;
+    }
+
+    // gracePeriodMinutes: free overstay buffer (default 15)
+    // blockMinutes: billing interval (default 15)
+    // penaltyPerBlock: charge per block (default ₹20)
+    public void CheckOut(DateTime checkOutTime, int gracePeriodMinutes = 15, int blockMinutes = 15, decimal penaltyPerBlock = 20m)
+    {
+        if (!CheckInTime.HasValue)
+            throw new DomainException("Vehicle has not checked in yet.");
+        if (CheckOutTime.HasValue)
+            throw new DomainException("Vehicle has already checked out.");
+
+        CheckOutTime = checkOutTime;
+
+        var overstayRaw = (checkOutTime - EndTime).TotalMinutes - gracePeriodMinutes;
+        if (overstayRaw > 0)
+        {
+            OverstayMinutes = (int)Math.Ceiling(overstayRaw);
+            var blocks = (int)Math.Ceiling(overstayRaw / blockMinutes);
+            OverstayPenalty = blocks * penaltyPerBlock;
+        }
     }
 }

@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IPricingService, PricingService>();
         services.AddScoped<IRealtimeService, RealtimeService>();
+        services.AddScoped<IGateService, GateService>();
 
         services.Configure<SendGridOptions>(config.GetSection("SendGrid"));
         services.Configure<AppOptions>(config.GetSection("App"));

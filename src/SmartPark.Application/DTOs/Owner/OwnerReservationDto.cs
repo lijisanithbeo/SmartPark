@@ -13,4 +13,7 @@ public class OwnerReservationDto
     public string Status { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string PaymentStatus { get; set; } = string.Empty;
+    public int     OverstayMinutes { get; set; }
+    public decimal OverstayPenalty { get; set; }
+    public bool    OverstayPaid    { get; set; }
 }

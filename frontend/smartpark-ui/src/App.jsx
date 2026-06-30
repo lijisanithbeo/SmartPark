@@ -16,6 +16,7 @@ import ManageLocations from './pages/ParkingOwner/ManageLocations'
 import ManageSlots from './pages/ParkingOwner/ManageSlots'
 import OwnerReservations from './pages/ParkingOwner/OwnerReservations'
 import OwnerPricingConfig from './pages/ParkingOwner/OwnerPricingConfig'
+import GateScannerPage from './pages/ParkingOwner/GateScannerPage'
 import AdminDashboard from './pages/Admin/Dashboard'
 import ManageUsers from './pages/Admin/ManageUsers'
 import ManageOwners from './pages/Admin/ManageOwners'
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/owner/slots"         element={<ManageSlots />} />
           <Route path="/owner/reservations"  element={<OwnerReservations />} />
           <Route path="/owner/pricing"       element={<OwnerPricingConfig />} />
+          <Route path="/owner/gate"          element={<GateScannerPage />} />
         </Route>
 
         {/* Customer routes — wrapped in AppLayout */}
