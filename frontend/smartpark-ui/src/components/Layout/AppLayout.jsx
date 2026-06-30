@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import ChatWidget from '@/components/Chat/ChatWidget'
 
 const ROUTE_TITLES = {
   '/admin':            'Dashboard',
@@ -83,6 +84,8 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ChatWidget />
     </div>
   )
 }

@@ -8,18 +8,21 @@ import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
 import { NAV_ORIGIN, buildMapsUrl } from '@/lib/geolocation'
 
-// Fix Vite asset-hashing breaking Leaflet's default icon lookup
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })
 
 const INDIA_CENTER = [20.5937, 78.9629]
 
-async function geocode(query) {
+const GEO_CACHE_KEY = 'sp_geo_v1'
+function readCache()            { try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}') } catch { return {} } }
+function writeCache(key, value) { try { const c = readCache(); c[key] = value; localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(c)) } catch {} }
+
+async function nominatim(q) {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
-      { headers: { 'Accept-Language': 'en' } }
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=in`
     )
+    if (!res.ok) return null
     const data = await res.json()
     if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)]
   } catch { }
@@ -27,38 +30,29 @@ async function geocode(query) {
 }
 
 async function geocodeLoc(loc) {
-  // Try specific address first, then name+city, then city alone
-  return (
-    await geocode(`${loc.locationName}, ${loc.address}, ${loc.city}, India`) ||
-    await geocode(`${loc.locationName}, ${loc.city}, India`) ||
-    await geocode(`${loc.city}, India`)
-  )
+  const key = `${loc.locationName}|${loc.city}`
+  const cached = readCache()[key]
+  if (cached) return cached
+  // Try location name alone first (e.g. "Lulu Mall Cochin" already contains city)
+  const result =
+    await nominatim(loc.locationName) ||
+    await nominatim(`${loc.locationName}, ${loc.city}`) ||
+    await nominatim(`${loc.locationName}, India`)
+  if (result) writeCache(key, result)
+  return result
 }
 
-function NavigateButton({ loc }) {
-  const destination = `${loc.locationName}, ${loc.address}, ${loc.city}, India`
-  const handleNavigate = () => {
-    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, loc.latitude, loc.longitude)
-  }
-  return (
-    <button
-      onClick={handleNavigate}
-      style={{
-        background: '#34a853',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '6px',
-        padding: '7px 16px',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        fontWeight: '600',
-        width: '100%',
-        marginTop: '6px',
-      }}
-    >
-      Navigate
-    </button>
-  )
+// Circular offset so multiple markers at the same city don't stack
+function offsetPosition(center, index, total) {
+  if (total <= 1 || index === 0) return center
+  const ring   = Math.floor((index - 1) / 6)
+  const pos    = (index - 1) % 6
+  const radius = 0.006 * (ring + 1)          // ~600m per ring
+  const angle  = (pos / Math.min(6, total - 1)) * 2 * Math.PI
+  return [
+    center[0] + radius * Math.sin(angle),
+    center[1] + radius * Math.cos(angle),
+  ]
 }
 
 function MapController({ center, zoom }) {
@@ -71,12 +65,12 @@ function MapController({ center, zoom }) {
 
 export default function ParkingMap({ locations = [], cityCenter = null }) {
   const navigate = useNavigate()
-  const [coords, setCoords] = useState({})
+  const [geocodedCoords, setGeocodedCoords] = useState({})
 
   useEffect(() => {
     let cancelled = false
+    setGeocodedCoords({})
 
-    // Use stored coordinates immediately — no Nominatim delay
     const stored = {}
     const needsGeocoding = []
     for (const loc of locations) {
@@ -86,28 +80,32 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
         needsGeocoding.push(loc)
       }
     }
-    if (Object.keys(stored).length > 0) {
-      setCoords(prev => ({ ...prev, ...stored }))
-    }
+    if (Object.keys(stored).length > 0) setGeocodedCoords(stored)
 
-    // Only call Nominatim for locations missing stored coordinates
     ;(async () => {
       for (const loc of needsGeocoding) {
         if (cancelled) return
         const result = await geocodeLoc(loc)
         if (cancelled) return
-        if (result) setCoords(prev => ({ ...prev, [loc.id]: result }))
-        await new Promise(r => setTimeout(r, 300))
+        if (result) setGeocodedCoords(prev => ({ ...prev, [loc.id]: result }))
+        await new Promise(r => setTimeout(r, 1100))
       }
     })()
 
     return () => { cancelled = true }
   }, [locations])
 
+  // Resolve marker position: stored / geocoded / cityCenter-offset fallback
+  const getPos = (loc, index) => {
+    if (geocodedCoords[loc.id]) return geocodedCoords[loc.id]
+    if (cityCenter) return offsetPosition(cityCenter, index, locations.length)
+    return null
+  }
+
   return (
     <MapContainer
       center={cityCenter ?? INDIA_CENTER}
-      zoom={cityCenter ? 13 : 5}
+      zoom={cityCenter ? 12 : 5}
       style={{ height: '440px', width: '100%', borderRadius: '12px', zIndex: 0 }}
       scrollWheelZoom
     >
@@ -116,10 +114,10 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {cityCenter && <MapController center={cityCenter} zoom={13} />}
+      {cityCenter && <MapController center={cityCenter} zoom={12} />}
 
-      {locations.map(loc => {
-        const pos = coords[loc.id]
+      {locations.map((loc, index) => {
+        const pos = getPos(loc, index)
         if (!pos) return null
         return (
           <Marker key={loc.id} position={pos}>
@@ -139,7 +137,15 @@ export default function ParkingMap({ locations = [], cityCenter = null }) {
                 >
                   View Slots
                 </button>
-                <NavigateButton loc={loc} />
+                <button
+                  onClick={() => {
+                    const dest = `${loc.locationName}, ${loc.address}, ${loc.city}, India`
+                    window.location.href = buildMapsUrl(dest, NAV_ORIGIN, loc.latitude, loc.longitude)
+                  }}
+                  style={{ background: '#34a853', color: '#fff', border: 'none', borderRadius: '6px', padding: '7px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', width: '100%', marginTop: '6px' }}
+                >
+                  Navigate
+                </button>
               </div>
             </Popup>
           </Marker>

@@ -28,6 +28,9 @@ packages/
 .env.*
 !.env.example
 
+# Local secrets (never commit)
+appsettings.Development.json
+
 # OS
 .DS_Store
 Thumbs.db

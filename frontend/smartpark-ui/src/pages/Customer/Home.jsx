@@ -13,7 +13,49 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 
+const CITY_COORDS = {
+  'cochin':             [9.9816,  76.2999],
+  'kochi':              [9.9816,  76.2999],
+  'ernakulam':          [9.9816,  76.2999],
+  'thrissur':           [10.5276, 76.2144],
+  'trivandrum':         [8.4875,  76.9525],
+  'thiruvananthapuram': [8.4875,  76.9525],
+  'calicut':            [11.2588, 75.7804],
+  'kozhikode':          [11.2588, 75.7804],
+  'kannur':             [11.8745, 75.3704],
+  'kollam':             [8.8932,  76.6141],
+  'palakkad':           [10.7867, 76.6548],
+  'bangalore':          [12.9716, 77.5946],
+  'bengaluru':          [12.9716, 77.5946],
+  'chennai':            [13.0827, 80.2707],
+  'mumbai':             [19.0760, 72.8777],
+  'delhi':              [28.6139, 77.2090],
+  'new delhi':          [28.6139, 77.2090],
+  'hyderabad':          [17.3850, 78.4867],
+  'pune':               [18.5204, 73.8567],
+  'kolkata':            [22.5726, 88.3639],
+  'ahmedabad':          [23.0225, 72.5714],
+  'jaipur':             [26.9124, 75.7873],
+  'surat':              [21.1702, 72.8311],
+  'lucknow':            [26.8467, 80.9462],
+  'bhopal':             [23.2599, 77.4126],
+  'indore':             [22.7196, 75.8577],
+  'nagpur':             [21.1458, 79.0882],
+  'coimbatore':         [11.0168, 76.9558],
+  'madurai':            [9.9252,  78.1198],
+  'visakhapatnam':      [17.6868, 83.2185],
+  'vizag':              [17.6868, 83.2185],
+}
+
 async function geocodeCity(city) {
+  const key = city.toLowerCase().trim()
+  // Instant lookup — no network call needed
+  if (CITY_COORDS[key]) return CITY_COORDS[key]
+  // Partial match (e.g. "kochi" matches "cochin")
+  for (const [name, coords] of Object.entries(CITY_COORDS)) {
+    if (key.includes(name) || name.includes(key)) return coords
+  }
+  // Fallback to Nominatim if city not in list
   try {
     const res = await fetch(
       `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(city + ', India')}&format=json&limit=1`,
@@ -142,7 +184,7 @@ export default function Home() {
       )}
 
       {/* Map */}
-      <ParkingMap locations={allLocations} cityCenter={cityCenter} />
+      <ParkingMap locations={filtered} cityCenter={cityCenter} />
 
       {/* Location cards */}
       <div>

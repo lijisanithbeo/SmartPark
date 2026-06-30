@@ -30,6 +30,13 @@ public static class DependencyInjection
         services.AddScoped<IEmailService, SendGridEmailService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
 
+        services.AddHttpClient("Groq", c =>
+        {
+            c.BaseAddress = new Uri("https://api.groq.com");
+            c.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddScoped<IChatService, ChatService>();
+
         return services;
     }
 }

@@ -126,6 +126,7 @@ app.MapPaymentEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapOwnerEndpoints();
 app.MapPricingEndpoints();
+app.MapChatEndpoints();
 app.MapHub<ParkingHub>("/hubs/parking");
 
 // Seed database on startup

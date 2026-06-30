@@ -203,12 +203,13 @@ export default function ReservationPage() {
 
   const handleStartDateChange = (date) => {
     setStartDate(date)
-    if (endDate && endDate < date) setEndDate(date)
+    if (!endDate || endDate < date) setEndDate(date)
   }
 
   const handleStartTimeChange = (time) => {
     setStartTime(time)
-    if (startDate === endDate && endTime && time >= endTime) {
+    // Auto-advance end time to start+1h if not set or not after start
+    if (!endTime || (startDate === endDate && time >= endTime)) {
       const newH = Math.min(parseInt(time.split(':')[0]) + 1, 23)
       setEndTime(`${String(newH).padStart(2, '0')}:${time.split(':')[1]}`)
     }
@@ -410,7 +411,7 @@ export default function ReservationPage() {
             </div>
 
             {/* Pricing + demand card (server-calculated) */}
-            {(duration > 0 || estimateLoading) && (
+            {(startDate && startTime && endDate && endTime) && (
               <PricingCard estimate={estimate} loading={estimateLoading} />
             )}
 

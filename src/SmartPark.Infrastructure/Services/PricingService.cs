@@ -27,7 +27,7 @@ public class PricingService : IPricingService
         var breakdown = FormatBreakdown(pricingType, hours, rate, total);
 
         var (available, occupied, totalSlots) = await GetSlotCounts(locationId);
-        var (demandLevel, demandMessage) = CalcDemand(available, totalSlots);
+        var (demandLevel, demandMessage) = CalcDemand(config, startTime);
         var (isPeakActive, peakMessage) = CheckCurrentPeak(config);
 
         return new PriceEstimateDto(
@@ -63,7 +63,7 @@ public class PricingService : IPricingService
 
         var config = await _uow.PricingConfigs.GetByLocationIdAsync(locationId);
         var (available, occupied, totalSlots) = await GetSlotCounts(locationId);
-        var (demandLevel, demandMessage) = CalcDemand(available, totalSlots);
+        var (demandLevel, demandMessage) = CalcDemand(config, DateTime.Now);
         var (isPeakActive, peakMessage) = CheckCurrentPeak(config);
         var occupancyRate = totalSlots > 0 ? (double)occupied / totalSlots : 0.0;
 
@@ -122,8 +122,10 @@ public class PricingService : IPricingService
         if (config == null)
             return ("Normal", slotRate);
 
-        bool isWeekend = startTime.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-        int hour = startTime.Hour;
+        // Peak hours are configured in local time — normalize booking time to local before comparing
+        var local = startTime.Kind == DateTimeKind.Utc ? startTime.ToLocalTime() : startTime;
+        bool isWeekend = local.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+        int hour = local.Hour;
 
         if (isWeekend && config.WeekendPeakEnabled
             && hour >= config.WeekendPeakStartHour && hour < config.WeekendPeakEndHour)
@@ -151,17 +153,30 @@ public class PricingService : IPricingService
         return (available, Math.Max(0, occupied), total);
     }
 
-    private static (string level, string message) CalcDemand(int available, int total)
+    private static (string level, string message) CalcDemand(PricingConfig? config, DateTime atTime)
     {
-        if (total == 0) return ("Low", "No demand data available.");
-        double rate = 1.0 - ((double)available / total);
+        if (config == null)
+            return ("Low", "Plenty of parking spaces available.");
 
-        return rate switch
-        {
-            <= 0.50 => ("Low",    "Plenty of parking spaces available."),
-            <= 0.80 => ("Medium", "Moderate demand. Booking early is recommended."),
-            _       => ("High",   "High demand. Limited slots remaining."),
-        };
+        var local = atTime.Kind == DateTimeKind.Utc ? atTime.ToLocalTime() : atTime;
+        bool isWeekend = local.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+        int hour = local.Hour;
+
+        bool peakEnabled = isWeekend ? config.WeekendPeakEnabled   : config.WeekdayPeakEnabled;
+        int  peakStart   = isWeekend ? config.WeekendPeakStartHour : config.WeekdayPeakStartHour;
+        int  peakEnd     = isWeekend ? config.WeekendPeakEndHour   : config.WeekdayPeakEndHour;
+
+        if (!peakEnabled)
+            return ("Low", "Plenty of parking spaces available.");
+
+        if (hour >= peakStart && hour < peakEnd)
+            return ("High", "High demand. Limited slots remaining.");
+
+        int preStart = Math.Max(0, peakStart - 2);
+        if (hour >= preStart && hour < peakStart)
+            return ("Medium", "Moderate demand. Booking early is recommended.");
+
+        return ("Low", "Plenty of parking spaces available.");
     }
 
     private static (bool isActive, string message) CheckCurrentPeak(PricingConfig? config)
