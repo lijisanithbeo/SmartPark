@@ -10,7 +10,7 @@ SmartPark is a full-stack parking management application.
 - **Auth:** JWT Bearer tokens, BCrypt password hashing
 - **Real-time:** SignalR WebSockets
 - **Maps (in-app):** Leaflet + react-leaflet + OpenStreetMap tiles
-- **Maps (navigation):** Google Maps Directions URL (same-tab navigation)
+- **Maps (navigation):** Google Maps Directions URL — Home page opens new tab, other pages same tab
 - **Geocoding:** Nominatim (OpenStreetMap) — free, no API key
 - **Architecture:** Domain → Application → Infrastructure → API (layered)
 
@@ -72,7 +72,7 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 - Search filters client-side — also calls Nominatim to fly the map to the searched city
 - Each location card (shadcn Card + Badge) shows: name, address, available slots (live via SignalR)
 - Two actions per card:
-  - **Navigate** → opens Google Maps in same tab (see Navigation section below)
+  - **Navigate** → opens Google Maps in a **new tab** using device GPS as origin (see Navigation section below)
   - **Reserve** → navigates to `/search?locationId=X`
 
 ### Find a Location (`/search`) — Location List
@@ -143,6 +143,14 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 - Exit tab: shows live overstay preview (15 min grace, ₹20/15 min block), penalty checkbox, **Confirm Exit** button
 - After action: result card with success message + **Scan Next Vehicle** reset button
 - Restricted to ParkingOwner role
+
+**Booking status states shown on Gate Scanner:**
+| Status | Meaning |
+|---|---|
+| `Confirmed` | Booked, not yet checked in — Entry allowed |
+| `Checked In` | Car is inside — Exit allowed |
+| `Checked Out` | Car has already left — shows "This vehicle has already exited" message, no further action |
+| `Cancelled` | Booking was cancelled — entry/exit blocked |
 
 ### Reservations (`/owner/reservations`) — Overstay columns (updated)
 - Added 3 new columns to the reservations table:
@@ -242,25 +250,30 @@ The chatbot (`ChatService.cs`) fetches live DB data and injects it as a system p
 
 ## Google Maps Navigation
 
-### Fixed Origin (as of 2026-06-27)
-Navigation always starts from **BEO Software, Palrivattom** — hardcoded as `NAV_ORIGIN` constant in `geolocation.js`.
+### Home Page Navigate (updated 2026-07-02)
+- **New tab** — Home page Navigate button uses `window.open(..., '_blank')` so SmartPark stays open
+- **No fixed origin** — `NAV_ORIGIN` (BEO Software) removed from Home navigate; Google Maps uses the user's device GPS as starting point
+- **Text-based destination** — all parking location coordinates set to NULL in DB; destination is resolved by location name/address text (Google Maps finds well-known landmarks accurately by name)
 
-### How It Works
-1. Customer clicks Navigate on any parking location card / map popup / booking history card
-2. `window.location.href` navigates the **current tab** to Google Maps Directions URL
-3. Browser Back button returns the customer to SmartPark
-4. URL format:
+### Other Pages (BookingHistory, ReservationPage, ParkingMap)
+- Still use `NAV_ORIGIN = 'BEO Software, Palrivattom'` as fixed origin
+- Still use `window.location.href` (same tab)
+
+### How It Works (Home page)
+1. Customer clicks Navigate on a parking location card
+2. `window.open(url, '_blank')` opens Google Maps in a **new tab**
+3. SmartPark remains open in the original tab — no need for Back button
+4. URL format (no origin):
    ```
    https://www.google.com/maps/dir/?api=1
-     &origin=BEO+Software%2C+Palrivattom
-     &destination=LAT,LNG          ← stored GPS coordinates (comma NOT encoded)
+     &destination=Lulu+Mall%2C+Cochin%2C+India   ← encoded location name
      &travelmode=driving
    ```
 
 ### Destination Coordinates Source
 - Stored as `Latitude` / `Longitude` (nullable double) on the `ParkingLocation` entity
 - Auto-geocoded via Nominatim when owner saves/updates a location (owner never sees or inputs coordinates)
-- If coordinates are null (older locations), destination falls back to encoded address text
+- **All 10 locations currently have NULL coordinates** (reset on 2026-07-02) — destination falls back to encoded location name/address text which is more accurate for well-known landmarks
 
 ### Key Files
 | What | Path |
@@ -294,15 +307,16 @@ When a parking owner saves a new or updated location:
 - Axios interceptor in `api.js` auto-attaches `Authorization: Bearer <token>` to every request
 - Token expiry: 24 hours
 
-### Forgot Password Flow (updated 2026-06-27)
+### Forgot Password Flow (updated 2026-07-02)
 
-**Current implementation — on-screen reset link (no email):**
+**Current implementation — direct redirect (no email, no intermediate screen):**
 - `POST /api/auth/forgot-password` — generates 32-byte CSPRNG token → SHA-256 hashed for DB storage
-- Raw token returned directly in the API response as `{ resetUrl }` — displayed on screen, no email sent
+- Raw token returned directly in the API response as `{ resetUrl }` — no email sent
 - Token expires in 15 minutes, single-use (`UsedAt` stamped on use)
 - `POST /api/auth/reset-password` — validates token, updates password (BCrypt), marks token used
 - Minimum password length: **1 character** (reduced from 8 for demo)
-- `ForgotPassword.jsx` displays the reset URL on screen after submission
+- `ForgotPassword.jsx` — after submitting email, **redirects directly** to reset password page via `window.location.href = data.resetUrl` (no intermediate "Reset link ready" screen)
+- Button label: **"Get Reset Link"**
 
 > **Note:** SendGrid integration exists in the codebase (`SendGridEmailService.cs`) but is not used in the current reset flow. The `IPasswordResetService` returns `resetUrl` directly. This was changed to avoid email dependency during demo/testing.
 
@@ -379,6 +393,9 @@ dotnet ef database update --project src/SmartPark.Infrastructure --startup-proje
 
 # Kill API process if port 5000 is locked during rebuild (PowerShell)
 Stop-Process -Id (Get-NetTCPConnection -LocalPort 5000 -State Listen).OwningProcess -Force
+
+# Kill Vite process if port 5173 is already in use (PowerShell)
+Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }
 ```
 
 ---
@@ -392,4 +409,7 @@ Stop-Process -Id (Get-NetTCPConnection -LocalPort 5000 -State Listen).OwningProc
 - GPS coordinates stored as nullable doubles — null means location was created before auto-geocoding was added; navigation falls back to text address
 - `NAV_ORIGIN` is a single constant in `geolocation.js` — change one line to switch the navigation starting point
 - `buildMapsUrl` always produces a `/dir/` (directions) URL — never a `/search/` URL, even without an origin parameter
-- Same-tab navigation (`window.location.href`) chosen over `window.open` — avoids popup blockers, browser Back button returns to app
+- Home page Navigate uses `window.open(..., '_blank')` — new tab keeps SmartPark open; other pages (BookingHistory, ReservationPage, ParkingMap) still use same-tab navigation
+- Home page Navigate uses `null` origin so Google Maps defaults to device GPS; other pages still use `NAV_ORIGIN = 'BEO Software, Palrivattom'`
+- All parking location coordinates set to NULL — text-based name search used for Home navigate (more accurate for well-known landmarks)
+- Vite `strictPort: true` in `vite.config.js` — always uses port 5173, never falls back to 5174+; if 5173 is occupied kill the old process first
