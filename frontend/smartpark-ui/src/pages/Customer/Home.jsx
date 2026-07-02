@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Search, MapPin, Navigation, X } from 'lucide-react'
 import parkingService from '@/services/parkingService'
 import { NOMINATIM_BASE_URL } from '@/lib/constants'
-import { NAV_ORIGIN, formatDestination, buildMapsUrl } from '@/lib/geolocation'
+import { formatDestination, buildMapsUrl } from '@/lib/geolocation'
 import ParkingMap from '@/components/Map/ParkingMap'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -134,7 +134,7 @@ export default function Home() {
 
   const handleNavigate = (loc) => {
     const destination = formatDestination(loc.locationName, loc.address, loc.city)
-    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, loc.latitude, loc.longitude)
+    window.open(buildMapsUrl(destination, null, loc.latitude, loc.longitude), '_blank')
   }
 
   return (

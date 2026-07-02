@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      strictPort: true,
       proxy: {
         '/api':  { target: apiUrl, changeOrigin: true },
         '/hubs': { target: apiUrl, changeOrigin: true, ws: true },
