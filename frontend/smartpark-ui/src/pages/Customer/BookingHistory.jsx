@@ -68,7 +68,7 @@ export default function BookingHistory() {
 
   const handleNavigate = (r) => {
     const destination = formatDestination(r.locationName, r.locationAddress, r.locationCity)
-    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, r.latitude, r.longitude)
+    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, null, null)
   }
 
   const handleCancelConfirm = async () => {

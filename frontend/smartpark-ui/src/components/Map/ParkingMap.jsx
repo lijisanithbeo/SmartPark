@@ -58,7 +58,7 @@ function offsetPosition(center, index, total) {
 function MapController({ center, zoom }) {
   const map = useMap()
   useEffect(() => {
-    if (center) map.flyTo(center, zoom, { duration: 1.5 })
+    if (center) map.flyTo(center, zoom, { duration: 1.0 })
   }, [center, zoom])
   return null
 }

@@ -23,7 +23,7 @@ import { NAV_ORIGIN, formatDestination, buildMapsUrl } from '@/lib/geolocation'
 function NavigateBtn({ locationName, address, city, latitude, longitude }) {
   const handleClick = () => {
     const destination = formatDestination(locationName, address, city)
-    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, latitude, longitude)
+    window.location.href = buildMapsUrl(destination, NAV_ORIGIN, null, null)
   }
   return (
     <Button variant="default" className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={handleClick}>

@@ -135,7 +135,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Page heading */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Platform Overview</h2>
         <p className="text-muted-foreground mt-1">Overview of your parking network</p>
       </div>
 

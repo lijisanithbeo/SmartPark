@@ -92,7 +92,7 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 ### Reserve a Slot (`/reserve/:slotId`)
 
 - TopBar title: **Reserve a Slot**
-- Reservation confirmation form with Navigate button
+- Reservation confirmation form with Navigate button — BEO Software as origin, text-based destination (null lat/lng) for accurate location name search
 - **Vehicle Number is mandatory** (red `*`) — submit blocked with error if empty
 - PricingCard shown whenever start date/time and end date/time are all selected (not just when duration > 0)
 - End date auto-set to start date if not yet selected; end time auto-advances to start+1h if end ≤ start
@@ -101,7 +101,7 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 
 - Lists all reservations with status (Confirmed / Cancelled / Pending)
 - **QR toggle** — fetches and shows QR code on demand (Base64 PNG)
-- **Navigate** — same Google Maps flow as Home
+- **Navigate** — opens Google Maps (same tab), BEO Software as origin, text-based destination (null lat/lng) for accurate location name search
 - **Cancel** — shadcn ConfirmDialog → cancels reservation, SignalR frees the slot
 
 ### My Profile (`/profile`)
@@ -111,12 +111,21 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 
 ---
 
+## Admin Pages
+
+### Dashboard (`/admin`)
+- TopBar title: **Dashboard**
+- Page subtitle: **"Platform Overview"** (updated 2026-07-03 — was "Dashboard", caused repeated heading)
+- Stats: total users, owners, locations, reservations, platform revenue
+
+---
+
 ## Owner Pages
 
 ### Dashboard (`/owner`) — Overview
 
 - TopBar title: **Dashboard**
-- Page subtitle: **"Your Parking Overview"** (changed from "Manage your parking infrastructure" on 2026-06-28)
+- Page subtitle: **"Your Parking Overview"**
 - Stats cards: Total Locations, Total Slots, Available Slots, Active Reservations, Today's Revenue, Monthly Revenue, Total Revenue
 - Quick Actions: My Locations, My Slots, Reservations
 
@@ -252,28 +261,43 @@ The chatbot (`ChatService.cs`) fetches live DB data and injects it as a system p
 
 ### Home Page Navigate (updated 2026-07-02)
 - **New tab** — Home page Navigate button uses `window.open(..., '_blank')` so SmartPark stays open
-- **No fixed origin** — `NAV_ORIGIN` (BEO Software) removed from Home navigate; Google Maps uses the user's device GPS as starting point
-- **Text-based destination** — all parking location coordinates set to NULL in DB; destination is resolved by location name/address text (Google Maps finds well-known landmarks accurately by name)
+- **Fixed origin: BEO Software, Palrivattom** — `NAV_ORIGIN` used as starting point on Home page
+- **Text-based destination** — lat/lng passed as `null` to `buildMapsUrl`; destination resolved by location name/address text — Google Maps finds well-known landmarks accurately by name (coordinates are NOT used for navigation to avoid pointing to wrong coordinate)
 
 ### Other Pages (BookingHistory, ReservationPage, ParkingMap)
-- Still use `NAV_ORIGIN = 'BEO Software, Palrivattom'` as fixed origin
+- Also use `NAV_ORIGIN = 'BEO Software, Palrivattom'` as fixed origin
 - Still use `window.location.href` (same tab)
 
 ### How It Works (Home page)
 1. Customer clicks Navigate on a parking location card
 2. `window.open(url, '_blank')` opens Google Maps in a **new tab**
 3. SmartPark remains open in the original tab — no need for Back button
-4. URL format (no origin):
+4. URL format:
    ```
    https://www.google.com/maps/dir/?api=1
-     &destination=Lulu+Mall%2C+Cochin%2C+India   ← encoded location name
+     &origin=BEO+Software%2C+Palrivattom
+     &destination=Oberon+Mall+Parking%2C+MG+Road%2C+Ernakulam%2C+Cochin%2C+India
      &travelmode=driving
    ```
 
 ### Destination Coordinates Source
 - Stored as `Latitude` / `Longitude` (nullable double) on the `ParkingLocation` entity
 - Auto-geocoded via Nominatim when owner saves/updates a location (owner never sees or inputs coordinates)
-- **All 10 locations currently have NULL coordinates** (reset on 2026-07-02) — destination falls back to encoded location name/address text which is more accurate for well-known landmarks
+- **All 10 locations have correct coordinates set** (updated 2026-07-02) — used for in-app Leaflet map markers only; Navigate button always uses text-based name search for accuracy
+
+### GPS Coordinates (set 2026-07-02)
+| ID | Location | Latitude | Longitude |
+|---|---|---|---|
+| 1 | Express Avenue Mall, Chennai | 13.0619 | 80.2762 |
+| 2 | Chennai International Airport | 12.9941 | 80.1709 |
+| 3 | Lulu, Chennai | 13.0524 | 80.2120 |
+| 5 | Phoenix MarketCity, Chennai | 12.9954 | 80.2140 |
+| 6 | Lulu Mall Cochin (Edapally) | 10.0265 | 76.3090 |
+| 7 | Cochin International Airport | 10.1520 | 76.3920 |
+| 8 | Oberon Mall Parking, Cochin | 9.9707 | 76.2911 |
+| 9 | Trivandrum Central Station | 8.4883 | 76.9525 |
+| 10 | Central Square Mall, Cochin | 10.0034 | 76.2999 |
+| 12 | Forum Mall, Cochin (Thevara) | 9.9373 | 76.2902 |
 
 ### Key Files
 | What | Path |
@@ -396,6 +420,9 @@ Stop-Process -Id (Get-NetTCPConnection -LocalPort 5000 -State Listen).OwningProc
 
 # Kill Vite process if port 5173 is already in use (PowerShell)
 Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }
+
+# One-click startup script (kills both ports, starts API + frontend in separate windows)
+# Double-click: G:\ACloude\Project\SmartPark\StartSmartPark.bat
 ```
 
 ---
@@ -410,6 +437,9 @@ Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Obje
 - `NAV_ORIGIN` is a single constant in `geolocation.js` — change one line to switch the navigation starting point
 - `buildMapsUrl` always produces a `/dir/` (directions) URL — never a `/search/` URL, even without an origin parameter
 - Home page Navigate uses `window.open(..., '_blank')` — new tab keeps SmartPark open; other pages (BookingHistory, ReservationPage, ParkingMap) still use same-tab navigation
-- Home page Navigate uses `null` origin so Google Maps defaults to device GPS; other pages still use `NAV_ORIGIN = 'BEO Software, Palrivattom'`
-- All parking location coordinates set to NULL — text-based name search used for Home navigate (more accurate for well-known landmarks)
+- All pages use `NAV_ORIGIN = 'BEO Software, Palrivattom'` as fixed starting point
+- Home page Navigate passes `null` for lat/lng to `buildMapsUrl` — forces text-based name search which is more accurate than coordinates for well-known landmarks
+- DB coordinates are used only for Leaflet in-app map markers, not for Google Maps navigation
+- Map fly speed set to `duration: 1.0` (was 1.5) in `ParkingMap.jsx` — faster city search animation
+- `StartSmartPark.bat` in project root — double-click to kill ports 5000/5173 and start both servers cleanly
 - Vite `strictPort: true` in `vite.config.js` — always uses port 5173, never falls back to 5174+; if 5173 is occupied kill the old process first
