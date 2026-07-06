@@ -35,6 +35,43 @@ Additional test accounts use password **`a`** (minimum password length reduced t
 
 ---
 
+## Login Page Design (updated 2026-07-04)
+
+### Layout
+Split-panel card (`max-width: 780px`, `min-height: 520px`, `border: 0.5px solid #C7D2FE`):
+- **Left panel** (`w-72`, `bg: #F0F0FF`) — auth form (email, password, sign-in button, register link)
+- **Right panel** (`flex-1`, `bg: #1B3A6B` navy) — pure SVG illustration, **no text overlay**
+
+### Left Panel
+- Logo: `52×52px` rounded-14px box, `bg: #4338CA`, `<Car />` icon from lucide-react
+- Title: "SmartPark" (`font-size: 21, color: #1E1B4B`)
+- Subtitle: "Reserve your slot before you arrive" (`font-size: 11, color: #818CF8`)
+- Input fields wrapped in a custom div (`bg: white, border: 0.5px solid #C7D2FE, borderRadius: 8`) — shadcn `<Input>` with `border-0 shadow-none` inside
+- Show/hide password toggle with Eye / EyeOff icons
+- Sign-in button: `bg: #4338CA`, hover darkens to `#3730A3`
+
+### Right Panel — SVG Illustration
+File: `frontend/smartpark-ui/src/pages/Auth/Login.jsx`
+- `viewBox="0 0 520 540"`, `preserveAspectRatio="xMidYMid slice"`, fills panel absolutely
+- **Scene:** Night sky → multi-level parking garage (3 floors with individual slots) → road with 3 cars → floating phone with QR booking
+- **Animated stars:** 8 stars, each with `<animate>` on opacity + radius at different durations (1.4s–3.1s) and begin offsets — never all flash simultaneously
+- **Animated moon:** outer glow ring pulses opacity (0.1→0.28→0.1) + radius (38→46→38) every 3.5s
+- **Parking garage:** labeled FLOOR 1/2/3, slots show open (green badge "OPEN") or occupied (top-down car shape with headlights/taillights)
+- **Road cars:** 3 sedan silhouettes (blue, green, orange) — proper car profile using `<path>` for cabin with windshield pillars, headlights (yellow), taillights (red)
+- **Phone (top-right):** shows QR code pattern + "Booked! Slot C001 · 2h"
+- **Location pin:** glowing blue pin over the garage building
+- All `<defs>` IDs prefixed `sp` (spSky, spRoad, spGlow, spSoftGlow) to avoid collisions with other SVGs
+
+### Auth Page Logos (ForgotPassword, Register, ResetPassword)
+All three auth pages replaced the old "P" circle with:
+```jsx
+<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#2563EB]">
+  <Car className="h-6 w-6 text-white" />
+</div>
+```
+
+---
+
 ## Page Title Convention (updated 2026-06-28)
 
 **Rule:** The TopBar (`AppLayout.jsx`) is the single source of the page title — no page component renders its own `<h2>` title. Every page only shows a subtitle/description line below the TopBar.
@@ -117,6 +154,13 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 - TopBar title: **Dashboard**
 - Page subtitle: **"Platform Overview"** (updated 2026-07-03 — was "Dashboard", caused repeated heading)
 - Stats: total users, owners, locations, reservations, platform revenue
+- Quick Actions cards link to: Manage Users, Manage Owners, Analytics
+
+### Back Button (updated 2026-07-05)
+All three Admin Quick Action pages have a **← Back to Dashboard** button (`navigate('/admin')`) at the top:
+- `ManageUsers.jsx` — above "Manage Users" heading
+- `ManageOwners.jsx` — above "Manage Owners" heading
+- `AnalyticsDashboard.jsx` — above "Analytics Dashboard" heading
 
 ---
 
@@ -128,6 +172,12 @@ Dynamic title logic lives in `getRouteTitle(pathname, search)` in `AppLayout.jsx
 - Page subtitle: **"Your Parking Overview"**
 - Stats cards: Total Locations, Total Slots, Available Slots, Active Reservations, Today's Revenue, Monthly Revenue, Total Revenue
 - Quick Actions: My Locations, My Slots, Reservations
+
+### Back Button (updated 2026-07-05)
+All three Owner Quick Action pages have a **← Back to Dashboard** button (`navigate('/owner')`) at the top:
+- `ManageLocations.jsx` — above "Manage Locations" heading
+- `ManageSlots.jsx` — above "Manage Slots" heading
+- `OwnerReservations.jsx` — above "Reservations" heading
 
 ### Locations (`/owner/locations`)
 - Add, edit, delete parking locations
@@ -424,6 +474,44 @@ Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Obje
 # One-click startup script (kills both ports, starts API + frontend in separate windows)
 # Double-click: G:\ACloude\Project\SmartPark\StartSmartPark.bat
 ```
+
+---
+
+## Global UI Styling (updated 2026-07-01)
+
+### Sidebar (`Sidebar.jsx`)
+- Background: `bg-[#1B3A6B]`, border: `border-white/10`
+- Logo: `bg-[#2563EB] rounded-lg` with `<Car />` icon (lucide-react)
+- Active NavLink: `bg-white/15 text-white hover:bg-white/20`
+- Inactive NavLink: `text-white/65 hover:bg-white/10 hover:text-white`
+- Logout button: `text-white/65 hover:bg-white/10 hover:text-white`
+
+### TopBar (`TopBar.jsx`)
+- Background: `bg-white`, border-bottom: `1px solid #E5E7EB`
+- Title: `fontSize: 16, fontWeight: 500, color: #111827`
+- Subtitle: `fontSize: 11, color: #6B7280, marginTop: 2`
+- Accepts `subtitle` prop — passed from `AppLayout.jsx` via `ROUTE_SUBTITLES` map
+
+### AppLayout (`AppLayout.jsx`)
+- Main content area: `bg-[#F8FAFF]` (replaced gradient background)
+- `getRouteInfo()` returns `{ title, subtitle }` for every route
+- `ROUTE_SUBTITLES` map provides per-route subtitle strings
+
+### KPI Card (`kpi-card.jsx`)
+- `colorMap` uses inline hex objects `{ bg: '#hex', color: '#hex' }` — not Tailwind class strings
+- Icon wrapper: `rounded-lg` (was `rounded-full`), inline style `background: colorStyle.bg`
+- Colors: blue `#DBEAFE/#1D4ED8`, green `#D1FAE5/#059669`, orange `#FEF3C7/#D97706`, purple `#EDE9FE/#7C3AED`, teal `#DBEAFE/#2563EB`, red `#FEE2E2/#DC2626`
+
+### DataTable (`data-table.jsx`)
+- Header row: `bg-[#F1F5F9] hover:bg-[#F1F5F9]`
+- Header cell: `text-[#374151] font-medium`
+
+### Badge (`badge.jsx`)
+- `success` variant: `bg-[#D1FAE5] text-[#065F46] hover:bg-[#A7F3D0]`
+
+### Activate/Deactivate Buttons (ManageUsers, ManageOwners, AdminLocations)
+- Deactivate: `border-[#FCA5A5] text-[#DC2626] hover:bg-red-50`
+- Activate: `border-green-400 text-[#059669] hover:bg-green-50`
 
 ---
 

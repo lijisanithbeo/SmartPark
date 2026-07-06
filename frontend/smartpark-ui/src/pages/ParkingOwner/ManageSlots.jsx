@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Loader2, Pencil, ParkingSquare, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Pencil, ParkingSquare, Trash2 } from 'lucide-react'
 import parkingService from '@/services/parkingService'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +34,7 @@ const STATUS_BADGE_VARIANT = {
 }
 
 export default function ManageSlots() {
+  const navigate = useNavigate()
   const [locations, setLocations] = useState([])
   const [slots, setSlots] = useState([])
   const [selectedLocation, setSelectedLocation] = useState('')
@@ -130,6 +132,14 @@ export default function ManageSlots() {
   return (
     <div className="space-y-6">
       <div>
+        <button
+          onClick={() => navigate('/owner')}
+          className="flex items-center gap-1.5 text-sm font-medium mb-3 hover:opacity-75 transition-opacity"
+          style={{ color: '#2563EB' }}
+        >
+          <ArrowLeft style={{ width: 15, height: 15 }} />
+          Back to Dashboard
+        </button>
         <h2 className="text-2xl font-bold tracking-tight">Manage Slots</h2>
         <p className="text-muted-foreground mt-1">Configure and monitor parking slots</p>
       </div>

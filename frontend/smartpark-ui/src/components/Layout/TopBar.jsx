@@ -28,7 +28,7 @@ function avatarColor(user) {
   return AVATAR_COLORS[s % AVATAR_COLORS.length]
 }
 
-export default function TopBar({ onMenuToggle, title }) {
+export default function TopBar({ onMenuToggle, title, subtitle }) {
   const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -39,7 +39,10 @@ export default function TopBar({ onMenuToggle, title }) {
   }
 
   return (
-    <header className="h-14 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-40 px-4 flex items-center justify-between shrink-0">
+    <header
+      className="h-14 sticky top-0 z-40 px-4 flex items-center justify-between shrink-0 bg-white"
+      style={{ borderBottom: '1px solid #E5E7EB' }}
+    >
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
@@ -49,7 +52,14 @@ export default function TopBar({ onMenuToggle, title }) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="font-semibold text-lg leading-none">{title}</h1>
+        <div>
+          <h1 style={{ fontSize: 16, fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
+            {title}
+          </h1>
+          {subtitle && (
+            <p style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{subtitle}</p>
+          )}
+        </div>
       </div>
 
       {/* Right */}

@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -129,6 +131,7 @@ function DateRangeTabs({ value, onChange }) {
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function AnalyticsDashboard() {
+  const navigate = useNavigate()
   const [dateRange, setDateRange] = useState('30')
 
   // static data (no dateRange dependency)
@@ -188,6 +191,14 @@ export default function AnalyticsDashboard() {
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
+          <button
+            onClick={() => navigate('/admin')}
+            className="flex items-center gap-1.5 text-sm font-medium mb-3 hover:opacity-75 transition-opacity"
+            style={{ color: '#2563EB' }}
+          >
+            <ArrowLeft style={{ width: 15, height: 15 }} />
+            Back to Dashboard
+          </button>
           <h2 className="text-2xl font-bold tracking-tight">Analytics Dashboard</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Booking trends, revenue insights, and location performance

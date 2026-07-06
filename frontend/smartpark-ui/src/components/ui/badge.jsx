@@ -16,7 +16,7 @@ export const badgeVariants = cva(
         outline:
           'text-foreground',
         success:
-          'border-transparent bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 hover:bg-green-100/80',
+          'border-transparent bg-[#D1FAE5] text-[#065F46] hover:bg-[#A7F3D0]',
         warning:
           'border-transparent bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 hover:bg-yellow-100/80',
       },

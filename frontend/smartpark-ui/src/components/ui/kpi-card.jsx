@@ -5,12 +5,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const colorMap = {
-  blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
-  green: 'bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400',
-  orange: 'bg-orange-50 text-orange-600 dark:bg-orange-950 dark:text-orange-400',
-  red: 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400',
-  purple: 'bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400',
-  teal: 'bg-teal-50 text-teal-600 dark:bg-teal-950 dark:text-teal-400',
+  blue:   { bg: '#DBEAFE', color: '#1D4ED8' },
+  green:  { bg: '#D1FAE5', color: '#059669' },
+  orange: { bg: '#FEF3C7', color: '#D97706' },
+  purple: { bg: '#EDE9FE', color: '#7C3AED' },
+  teal:   { bg: '#DBEAFE', color: '#2563EB' },
+  red:    { bg: '#FEE2E2', color: '#DC2626' },
 }
 
 export function KpiCard({
@@ -24,11 +24,11 @@ export function KpiCard({
   loading = false,
   className,
 }) {
-  const colorClasses = colorMap[color] || colorMap.blue
+  const colorStyle = colorMap[color] || colorMap.blue
 
   if (loading) {
     return (
-      <Card className={cn('glass-card rounded-xl p-6 hover:shadow-fluent-md transition-shadow duration-200', className)}>
+      <Card className={cn('rounded-xl p-6 hover:shadow-md transition-shadow duration-200', className)}>
         <CardContent className="p-0">
           <div className="flex items-start justify-between">
             <div className="flex-1 space-y-3">
@@ -37,7 +37,7 @@ export function KpiCard({
               <Skeleton className="h-3 w-40" />
               <Skeleton className="h-5 w-20" />
             </div>
-            <Skeleton className="h-12 w-12 rounded-full" />
+            <Skeleton className="h-12 w-12 rounded-lg" />
           </div>
         </CardContent>
       </Card>
@@ -45,7 +45,7 @@ export function KpiCard({
   }
 
   return (
-    <Card className={cn('glass-card rounded-xl p-6 hover:shadow-fluent-md transition-shadow duration-200', className)}>
+    <Card className={cn('rounded-xl p-6 hover:shadow-md transition-shadow duration-200', className)}>
       <CardContent className="p-0">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -79,8 +79,11 @@ export function KpiCard({
             )}
           </div>
           {Icon && (
-            <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full', colorClasses)}>
-              <Icon className="h-6 w-6" />
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg"
+              style={{ background: colorStyle.bg }}
+            >
+              <Icon className="h-6 w-6" style={{ color: colorStyle.color }} />
             </div>
           )}
         </div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Car } from 'lucide-react'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -35,8 +35,8 @@ export default function ForgotPassword() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center pb-4">
           <div className="flex justify-center mb-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">
-              P
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#2563EB]">
+              <Car className="h-6 w-6 text-white" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>

@@ -10,9 +10,11 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
-import { Building2, Pencil } from 'lucide-react'
+import { ArrowLeft, Building2, Pencil } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export default function ManageOwners() {
+  const navigate = useNavigate()
   const [owners, setOwners] = useState([])
   const [loading, setLoading] = useState(true)
   const [confirm, setConfirm] = useState(null)
@@ -78,7 +80,7 @@ export default function ManageOwners() {
       key: 'isActive',
       header: 'Status',
       render: (val) => (
-        <Badge variant={val ? 'default' : 'destructive'} className="text-xs">
+        <Badge variant={val ? 'success' : 'destructive'} className="text-xs">
           {val ? 'Active' : 'Inactive'}
         </Badge>
       ),
@@ -97,8 +99,8 @@ export default function ManageOwners() {
             size="sm"
             className={
               row.isActive
-                ? 'border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground'
-                : 'border-green-600 text-green-600 hover:bg-green-600 hover:text-white'
+                ? 'border-[#FCA5A5] text-[#DC2626] hover:bg-red-50'
+                : 'border-green-400 text-[#059669] hover:bg-green-50'
             }
             onClick={() => requestToggle(row)}
           >
@@ -112,6 +114,14 @@ export default function ManageOwners() {
   return (
     <div className="space-y-6">
       <div>
+        <button
+          onClick={() => navigate('/admin')}
+          className="flex items-center gap-1.5 text-sm font-medium mb-3 hover:opacity-75 transition-opacity"
+          style={{ color: '#2563EB' }}
+        >
+          <ArrowLeft style={{ width: 15, height: 15 }} />
+          Back to Dashboard
+        </button>
         <h2 className="text-2xl font-bold tracking-tight">Manage Owners</h2>
         <p className="text-muted-foreground mt-1">Parking Owner accounts</p>
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ClipboardList } from 'lucide-react'
+import { ArrowLeft, ClipboardList } from 'lucide-react'
 import analyticsService from '@/services/analyticsService'
 import { DataTable } from '@/components/ui/data-table'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +23,7 @@ const fmtCurrency = (n) =>
   typeof n === 'number' ? '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'
 
 export default function OwnerReservations() {
+  const navigate = useNavigate()
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -122,6 +124,17 @@ export default function OwnerReservations() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <button
+          onClick={() => navigate('/owner')}
+          className="flex items-center gap-1.5 text-sm font-medium mb-3 hover:opacity-75 transition-opacity"
+          style={{ color: '#2563EB' }}
+        >
+          <ArrowLeft style={{ width: 15, height: 15 }} />
+          Back to Dashboard
+        </button>
+        <h2 className="text-2xl font-bold tracking-tight">Reservations</h2>
+      </div>
       <p className="text-muted-foreground">All customer reservations at your locations</p>
 
       <DataTable

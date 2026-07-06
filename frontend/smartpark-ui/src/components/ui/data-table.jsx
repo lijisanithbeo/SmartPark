@@ -71,9 +71,12 @@ export function DataTable({
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-[#F1F5F9] hover:bg-[#F1F5F9]">
               {columns.map(col => (
-                <TableHead key={col.key} className={col.className}>
+                <TableHead
+                  key={col.key}
+                  className={cn('text-[#374151] font-medium', col.className)}
+                >
                   {col.header}
                 </TableHead>
               ))}

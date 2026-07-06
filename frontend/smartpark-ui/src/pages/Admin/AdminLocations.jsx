@@ -79,7 +79,7 @@ export default function AdminLocations() {
       key: 'isActive',
       header: 'Status',
       render: (val) => (
-        <Badge variant={val ? 'default' : 'destructive'} className="text-xs">
+        <Badge variant={val ? 'success' : 'destructive'} className="text-xs">
           {val ? 'Active' : 'Inactive'}
         </Badge>
       ),
@@ -93,8 +93,8 @@ export default function AdminLocations() {
           size="sm"
           className={
             row.isActive
-              ? 'border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground'
-              : 'border-green-600 text-green-600 hover:bg-green-600 hover:text-white'
+              ? 'border-[#FCA5A5] text-[#DC2626] hover:bg-red-50'
+              : 'border-green-400 text-[#059669] hover:bg-green-50'
           }
           onClick={() => requestToggle(row)}
         >

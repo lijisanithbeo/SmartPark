@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Loader2, MapPin, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, MapPin, Pencil, Trash2 } from 'lucide-react'
 import parkingService from '@/services/parkingService'
 import { geocodeAddress } from '@/lib/geolocation'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import {
 const EMPTY_FORM = { locationName: '', address: '', city: '', totalSlots: '' }
 
 export default function ManageLocations() {
+  const navigate = useNavigate()
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -151,6 +153,14 @@ export default function ManageLocations() {
   return (
     <div className="space-y-6">
       <div>
+        <button
+          onClick={() => navigate('/owner')}
+          className="flex items-center gap-1.5 text-sm font-medium mb-3 hover:opacity-75 transition-opacity"
+          style={{ color: '#2563EB' }}
+        >
+          <ArrowLeft style={{ width: 15, height: 15 }} />
+          Back to Dashboard
+        </button>
         <h2 className="text-2xl font-bold tracking-tight">Manage Locations</h2>
         <p className="text-muted-foreground mt-1">Add and manage your parking locations</p>
       </div>

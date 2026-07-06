@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Car } from 'lucide-react'
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -67,8 +67,8 @@ export default function ResetPassword() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center pb-4">
           <div className="flex justify-center mb-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">
-              P
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#2563EB]">
+              <Car className="h-6 w-6 text-white" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
@@ -142,6 +142,15 @@ export default function ResetPassword() {
                   'Reset Password'
                 )}
               </Button>
+              <div className="text-center">
+                <Link
+                  to="/login"
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: '#2563EB' }}
+                >
+                  Back to sign in
+                </Link>
+              </div>
             </form>
           )}
         </CardContent>
